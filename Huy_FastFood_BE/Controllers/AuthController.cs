@@ -17,11 +17,13 @@ namespace Huy_FastFood_BE.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext context, IConfiguration configuration, IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
+            _emailService = emailService;
         }
 
         // POST: api/auth/login
@@ -93,6 +95,7 @@ namespace Huy_FastFood_BE.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDTO)
         {
@@ -166,5 +169,81 @@ namespace Huy_FastFood_BE.Controllers
                 return StatusCode(500, new { message = "An error occurred while processing your request.", error = ex.Message });
             }
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDTO request)
+        {
+            try
+            {
+                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Customers.Any(c => c.Email == request.Email));
+
+                if (account == null)
+                    return NotFound("Email không tồn tại trong hệ thống.");
+
+                // Tạo mã reset
+                var resetCode = new Random().Next(100000, 999999).ToString();
+                account.PasswordResetCode = resetCode;
+                account.ResetCodeExpiration = DateTime.Now.AddMinutes(2);
+
+                await _context.SaveChangesAsync();
+
+                // Gửi email
+                var emailBody = $"Mã đặt lại mật khẩu của bạn là: {resetCode}. Mã này có hiệu lực trong 2 phút.";
+                await _emailService.SendEmailAsync(request.Email, "Reset Password Code", emailBody);
+
+                return Ok("Email reset mật khẩu đã được gửi.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
+            }
+        }
+
+        [HttpPost("verify-reset-code")]
+        public async Task<IActionResult> VerifyResetCode([FromBody] VerifyResetCodeDTO request)
+        {
+            var account = await _context.Accounts.FirstOrDefaultAsync(a =>
+                a.PasswordResetCode == request.ResetCode &&
+                a.ResetCodeExpiration > DateTime.Now &&
+                a.Customers.Any(c => c.Email == request.Email)); // Check email match
+
+            if (account == null)
+            {
+                return BadRequest("Email hoặc mã xác nhận không đúng.");
+            }
+
+            return Ok("Mã xác nhận đúng.");
+        }
+
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO request)
+        {
+            if(request.ConfirmNewPassword != request.NewPassword)
+            {
+                return BadRequest("Mật khẩu không trùng khớp.");
+            }
+            var account = await _context.Accounts.FirstOrDefaultAsync(a =>
+                a.Customers.Any(c => c.Email == request.Email) &&
+                a.PasswordResetCode == request.ResetCode &&
+                a.ResetCodeExpiration > DateTime.Now);
+
+            if (account == null)
+            {
+                return BadRequest("Invalid email or reset code.");
+            }
+
+            // Hash the new password and update the account
+            account.Password = PasswordHasher.HashPassword(request.NewPassword);
+            account.PasswordResetCode = null; // Clear the reset code
+            account.ResetCodeExpiration = null;
+            account.UpdatedAt = DateTime.Now;
+
+            _context.Accounts.Update(account);
+            await _context.SaveChangesAsync();
+
+            return Ok("Mật khẩu đã được thay đổi.");
+        }
+
     }
 }

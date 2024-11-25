@@ -15,4 +15,25 @@
         public required string Phone { get; set; }
         public required string Email { get; set; }
     }
+
+    public class ForgotPasswordRequestDTO
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class VerifyResetCodeDTO
+    {
+        public string Email { get; set; } = string.Empty;
+        public string ResetCode { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDTO
+    {
+        public string Email { get; set; } = string.Empty;
+        public string ResetCode { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmNewPassword { get; set; } = string.Empty;
+    }
+
+
 }
