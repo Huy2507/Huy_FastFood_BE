@@ -45,6 +45,11 @@ namespace Huy_FastFood_BE.Controllers
                 {
                     return Unauthorized(new { message = "Invalid username or password" });
                 }
+
+                if (!account.IsActive)
+                {
+                    return BadRequest(new { message = "Account has been locked" });
+                }
              
                 var token = GenerateJwtToken(account);
 

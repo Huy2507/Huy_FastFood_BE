@@ -1,5 +1,6 @@
 ﻿using Huy_FastFood_BE.DTOs;
 using Huy_FastFood_BE.Models;
+using Huy_FastFood_BE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +14,11 @@ namespace Huy_FastFood_BE.Controllers.Admin
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class FoodController : ControllerBase
+    public class AdminFoodController : ControllerBase
     {
         private readonly AppDbContext _dbContext;
 
-        public FoodController(AppDbContext dbContext)
+        public AdminFoodController(AppDbContext dbContext)
         {
             _dbContext = dbContext;
         }
@@ -67,7 +68,6 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // Lấy danh sách tất cả món ăn
         [HttpGet]
-        [Authorize(Roles ="Admin")]
         public async Task<IActionResult> GetAllFoods()
         {
             try
@@ -111,9 +111,21 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (foodDTO == null)
                     return BadRequest(new { message = "Invalid food data" });
 
-                var food = MapToEntity(foodDTO);
-                food.CreatedAt = DateTime.UtcNow;
-                food.UpdatedAt = DateTime.UtcNow;
+                var food = new Food
+                {
+                    Name = foodDTO.Name,
+                    Description = foodDTO.Description,
+                    Price = foodDTO.Price,
+                    Enable = foodDTO.Enable,
+                    ImageUrl = foodDTO.ImageUrl,
+                    CategoryId = foodDTO.CategoryId,
+                    SeoKeywords = foodDTO.SeoKeywords,
+                    SeoDescription = foodDTO.SeoDescription,
+                    SeoTitle = foodDTO.SeoTitle,
+                    Slug = SlugHelper.GenerateSlug(foodDTO.Name),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
                 await _dbContext.Foods.AddAsync(food);
                 await _dbContext.SaveChangesAsync();
@@ -133,9 +145,6 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
-                if (id != foodDTO.FoodId)
-                    return BadRequest(new { message = "Food ID mismatch" });
-
                 var food = await _dbContext.Foods.FindAsync(id);
                 if (food == null)
                     return NotFound(new { message = "Food not found" });
@@ -144,8 +153,13 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 food.Name = foodDTO.Name;
                 food.Description = foodDTO.Description;
                 food.Price = foodDTO.Price;
+                food.Enable = foodDTO.Enable;
                 food.ImageUrl = foodDTO.ImageUrl;
                 food.CategoryId = foodDTO.CategoryId;
+                food.SeoKeywords = foodDTO.SeoKeywords;
+                food.SeoDescription = foodDTO.SeoDescription;
+                food.SeoTitle = foodDTO.SeoTitle;
+                food.Slug = SlugHelper.GenerateSlug(foodDTO.Name);
                 food.UpdatedAt = DateTime.UtcNow;
 
                 _dbContext.Foods.Update(food);
