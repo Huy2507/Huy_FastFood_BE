@@ -6,6 +6,17 @@
         public required string Password { get; set; }
     }
 
+    public class RefreshTokenDTO
+    {
+        public string RefreshToken { get; set; } = null!;
+        public int UserId { get; set; }
+    }
+
+    public class LogoutDTO
+    {
+        public string RefreshToken { get; set; } = null!;
+    }
+
     public class RegisterDTO
     {
         public required string Username { get; set; } = null!;

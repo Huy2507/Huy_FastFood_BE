@@ -18,12 +18,14 @@ namespace Huy_FastFood_BE.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly ITokenService _tokenService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration, IEmailService emailService)
+        public AuthController(AppDbContext context, IConfiguration configuration, IEmailService emailService, ITokenService tokenService)
         {
             _context = context;
             _configuration = configuration;
             _emailService = emailService;
+            _tokenService = tokenService;
         }
 
         // POST: api/auth/login
@@ -50,10 +52,35 @@ namespace Huy_FastFood_BE.Controllers
                 {
                     return BadRequest(new { message = "Account has been locked" });
                 }
-             
-                var token = GenerateJwtToken(account);
 
-                return Ok(new{Token = token});
+                // Lấy danh sách vai trò của tài khoản
+                var roles = await _context.UserRoles
+                                          .Where(ur => ur.AccountId == account.AccountId)
+                                          .Select(ur => ur.Role.RoleName)
+                                          .ToListAsync();
+
+                // Tạo Access Token
+                var accessToken = _tokenService.GenerateAccessToken(account, roles);
+
+                // Kiểm tra nếu vai trò là Customer, tạo Refresh Token
+                if (roles.Contains("Customer"))
+                {
+                    var refreshToken = _tokenService.GenerateRefreshToken(account.AccountId, "Customer");
+                    _context.RefreshTokens.Add(refreshToken);
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new
+                    {
+                        AccessToken = accessToken,
+                        RefreshToken = refreshToken.Token
+                    });
+                }
+
+                // Nếu không phải Customer, chỉ trả về Access Token
+                return Ok(new
+                {
+                    AccessToken = accessToken
+                });
             }
             catch (Exception ex)
             {
@@ -67,38 +94,31 @@ namespace Huy_FastFood_BE.Controllers
             return BCrypt.Net.BCrypt.Verify(enteredPassword, storedPasswordHash);
         }
 
-        private string GenerateJwtToken(Account account)
+        [HttpPost("RefreshToken")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDTO request)
         {
-            var roles = _context.UserRoles
-                .Where(ur => ur.AccountId == account.AccountId)
-                .Select(ur => ur.Role.RoleName)
-                .ToList();
-            var claims = new List<Claim>
+            if (!await _tokenService.ValidateRefreshToken(request.RefreshToken, request.UserId))
             {
-                new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("AccountId", account.AccountId.ToString()),
-                new Claim("UserName", account.Username),
-            };
-
-            // Thêm vai trò vào Claims
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
+                return Unauthorized("Invalid or expired refresh token");
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var account = await _context.Accounts.FindAsync(request.UserId);
+            if (account == null)
+            {
+                return Unauthorized("Invalid user");
+            }
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
-                signingCredentials: creds
-            );
+            var roles = await _context.UserRoles.Where(ur => ur.AccountId == account.AccountId).Select(ur => ur.Role.RoleName).ToListAsync();
+            var newAccessToken = _tokenService.GenerateAccessToken(account, roles);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return Ok(new { AccessToken = newAccessToken });
+        }
+
+        [HttpPost("Logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutDTO request)
+        {
+            await _tokenService.RevokeRefreshToken(request.RefreshToken);
+            return Ok("Logged out successfully");
         }
 
         [HttpPost("Register")]

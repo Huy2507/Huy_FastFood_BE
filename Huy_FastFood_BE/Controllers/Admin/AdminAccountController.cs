@@ -124,6 +124,9 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
+                if (await _dbContext.Accounts.AnyAsync(a => a.Username == dto.Username))
+                    return BadRequest(new { message = "Username already exists." });
+
                 var account = await _dbContext.Accounts
                     .Include(a => a.UserRoles)
                     .FirstOrDefaultAsync(a => a.AccountId == id);
