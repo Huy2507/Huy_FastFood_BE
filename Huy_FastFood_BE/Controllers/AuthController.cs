@@ -161,7 +161,7 @@ namespace Huy_FastFood_BE.Controllers
                 await _context.SaveChangesAsync();
 
                 // Liên kết tài khoản với thông tin khách hàng
-                var customer = new Customer
+                var customer = new Models.Customer
                 {
                     AccountId = account.AccountId,
                     Name = registerDTO.Name,

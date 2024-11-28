@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\Customer\" />
     <Folder Include="Controllers\Chef\" />
   </ItemGroup>
 
