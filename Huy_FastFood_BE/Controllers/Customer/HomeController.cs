@@ -97,19 +97,23 @@ namespace Huy_FastFood_BE.Controllers.Customer
         {
             try
             {
-                // Tính tổng số lượng bán theo món ăn
+                // Giả sử "IsPopular" là tiêu chí bạn muốn sử dụng, hoặc thay bằng logic thực tế như số lượng bán ra
                 var favoriteFoodsQuery = await _context.Foods
-                    .Include(f => f.OrderItems) // Kết nối với bảng Order_Items
-                    .Select(f => new
+                    .Where(f => f.IsPopular == true) // Thay bằng logic phù hợp (VD: số lượng bán > 100)
+                    .Include(f => f.Category)
+                    .Select(f => new FoodFavoriteDTO
                     {
-                        f.FoodId,
-                        f.Name,
-                        f.Description,
-                        f.Price,
-                        f.ImageUrl,
-                        TotalSold = f.OrderItems.Sum(oi => oi.Quantity) // Tổng số lượng bán
+                        Name = f.Name,
+                        Price = f.Price,
+                        ImageUrl = f.ImageUrl,
+                        Description = f.Description,
+                        CategoryName = f.Category.CategoryName,
+                        SeoTitle = f.SeoTitle,
+                        SeoDescription = f.SeoDescription,
+                        SeoKeywords = f.SeoKeywords,
+                        Slug = f.Slug
                     })
-                    .OrderByDescending(f => f.TotalSold).Take(5).ToListAsync(); // Sắp xếp theo số lượng bán giảm dần
+                    .ToListAsync();
 
                 return Ok(favoriteFoodsQuery);
             }
@@ -118,5 +122,6 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 return StatusCode(500, new { message = "An error occurred while retrieving favorite foods.", error = ex.Message });
             }
         }
+
     }
 }

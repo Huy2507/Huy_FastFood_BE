@@ -18,4 +18,14 @@
 
         public string? ImgUrl { get; set; }
     }
+
+    public class CategoryCreateDTO
+    {
+        public string CategoryName { get; set; }
+        public string? Description { get; set; }
+        public string? SeoTitle { get; set; }
+        public string? SeoDescription { get; set; }
+        public string? SeoKeywords { get; set; }
+        public IFormFile? ImageFile { get; set; }
+    }
 }

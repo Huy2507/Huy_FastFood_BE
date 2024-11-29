@@ -85,13 +85,40 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // POST: api/Banner
         [HttpPost]
-        public async Task<IActionResult> CreateBanner([FromBody] BannerDTO dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateBanner([FromForm] BannerCreateDTO dto)
         {
             try
             {
+                string bannerImgUrl = null;
+
+                // Xử lý file ảnh tải lên
+                if (dto.BannerImgFile != null && dto.BannerImgFile.Length > 0)
+                {
+                    // Đường dẫn thư mục lưu ảnh
+                    var imagesFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images", "Banner");
+                    if (!Directory.Exists(imagesFolder))
+                    {
+                        Directory.CreateDirectory(imagesFolder);
+                    }
+
+                    // Tạo tên file duy nhất
+                    var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.BannerImgFile.FileName);
+                    var filePath = Path.Combine(imagesFolder, fileName);
+
+                    // Lưu file ảnh
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await dto.BannerImgFile.CopyToAsync(stream);
+                    }
+
+                    // Lấy đường dẫn URL của ảnh
+                    bannerImgUrl = $"/Images/Banner/{fileName}";
+                }
+
                 var banner = new Banner
                 {
-                    BannerImg = dto.BannerImg,
+                    BannerImg = bannerImgUrl,
                     Title = dto.Title,
                     Description = dto.Description,
                     LinkUrl = dto.LinkUrl,
@@ -114,9 +141,11 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
         // PUT: api/Banner/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBanner(int id, [FromBody] BannerDTO dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateBanner(int id, [FromForm] BannerCreateDTO dto)
         {
             try
             {
@@ -124,7 +153,43 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (existingBanner == null)
                     return NotFound(new { message = "Banner not found." });
 
-                existingBanner.BannerImg = dto.BannerImg;
+                string bannerImgUrl = existingBanner.BannerImg; // Giữ ảnh cũ nếu không tải ảnh mới
+
+                // Xử lý file ảnh tải lên
+                if (dto.BannerImgFile != null && dto.BannerImgFile.Length > 0)
+                {
+                    // Đường dẫn thư mục lưu ảnh
+                    var imagesFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images", "Banner");
+                    if (!Directory.Exists(imagesFolder))
+                    {
+                        Directory.CreateDirectory(imagesFolder);
+                    }
+
+                    // Tạo tên file duy nhất
+                    var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.BannerImgFile.FileName);
+                    var filePath = Path.Combine(imagesFolder, fileName);
+
+                    // Lưu file ảnh mới
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await dto.BannerImgFile.CopyToAsync(stream);
+                    }
+
+                    // Xóa ảnh cũ nếu tồn tại
+                    if (!string.IsNullOrEmpty(existingBanner.BannerImg))
+                    {
+                        var oldImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingBanner.BannerImg.TrimStart('/'));
+                        if (System.IO.File.Exists(oldImagePath))
+                        {
+                            System.IO.File.Delete(oldImagePath);
+                        }
+                    }
+
+                    // Cập nhật đường dẫn ảnh mới
+                    bannerImgUrl = $"/Images/Banner/{fileName}";
+                }
+
+                existingBanner.BannerImg = bannerImgUrl;
                 existingBanner.Title = dto.Title;
                 existingBanner.Description = dto.Description;
                 existingBanner.LinkUrl = dto.LinkUrl;
@@ -146,6 +211,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
         // DELETE: api/Banner/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBanner(int id)
@@ -156,6 +222,17 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (banner == null)
                     return NotFound(new { message = "Banner not found." });
 
+                // Xóa ảnh nếu tồn tại
+                if (!string.IsNullOrEmpty(banner.BannerImg))
+                {
+                    var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", banner.BannerImg.TrimStart('/'));
+                    if (System.IO.File.Exists(imagePath))
+                    {
+                        System.IO.File.Delete(imagePath);
+                    }
+                }
+
+                // Xóa banner khỏi database
                 _dbContext.Banners.Remove(banner);
                 await _dbContext.SaveChangesAsync();
 
@@ -166,5 +243,6 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
+
     }
 }

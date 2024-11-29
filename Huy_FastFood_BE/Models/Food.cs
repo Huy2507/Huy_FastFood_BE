@@ -31,6 +31,8 @@ public partial class Food
 
     public DateTime? UpdatedAt { get; set; }
 
+    public bool IsPopular { get; set; }
+
     public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
 
     public virtual Category? Category { get; set; }
