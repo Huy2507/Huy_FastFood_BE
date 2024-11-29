@@ -1,6 +1,7 @@
 ﻿using Huy_FastFood_BE.DTOs;
 using Huy_FastFood_BE.Models;
 using Huy_FastFood_BE.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class AdminAccountController : ControllerBase
     {
         private readonly AppDbContext _dbContext;

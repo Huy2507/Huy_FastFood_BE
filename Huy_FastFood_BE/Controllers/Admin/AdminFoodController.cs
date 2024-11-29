@@ -14,6 +14,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class AdminFoodController : ControllerBase
     {
         private readonly AppDbContext _dbContext;

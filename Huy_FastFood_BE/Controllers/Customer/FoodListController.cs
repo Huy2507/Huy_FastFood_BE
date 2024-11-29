@@ -1,5 +1,6 @@
 ﻿using Huy_FastFood_BE.DTOs;
 using Huy_FastFood_BE.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles ="Customer")]
     public class FoodListController : ControllerBase
     {
         private readonly AppDbContext _context;

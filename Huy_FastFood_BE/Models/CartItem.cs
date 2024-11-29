@@ -13,6 +13,8 @@ public partial class CartItem
 
     public int Quantity { get; set; }
 
+    public decimal? TotalPrice { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

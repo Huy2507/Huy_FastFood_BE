@@ -1,10 +1,12 @@
 ﻿using Huy_FastFood_BE.DTOs;
 using Huy_FastFood_BE.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(Roles = "Admin")]
 public class AdminRoleController : ControllerBase
 {
     private readonly AppDbContext _context;
