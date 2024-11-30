@@ -57,7 +57,8 @@ namespace Huy_FastFood_BE.Controllers.Admin
                         Street = a.Street,
                         Ward = a.Ward,
                         District = a.District,
-                        City = a.City
+                        City = a.City,
+                        IsDefault = a.IsDefault,
                     }).ToList(),
                     Orders = c.Orders.Select(o => new OrderDTO
                     {
@@ -113,7 +114,8 @@ namespace Huy_FastFood_BE.Controllers.Admin
                         Street = a.Street,
                         Ward = a.Ward,
                         District = a.District,
-                        City = a.City
+                        City = a.City,
+                        IsDefault = a.IsDefault,
                     }).ToList(),
                     Orders = customer.Orders.Select(o => new OrderDTO
                     {

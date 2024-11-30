@@ -17,6 +17,8 @@ public partial class Address
 
     public int? CustomerId { get; set; }
 
+    public bool IsDefault { get; set; }
+
     public virtual Customer? Customer { get; set; }
 
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
