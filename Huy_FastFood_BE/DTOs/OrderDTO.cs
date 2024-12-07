@@ -10,9 +10,6 @@
 
     public class CreateOrderDTO
     {
-        public int? CustomerId { get; set; }
-        public decimal TotalAmount { get; set; }
-        public int? PaymentId { get; set; }
         public int? AddressId { get; set; }
     }
 }

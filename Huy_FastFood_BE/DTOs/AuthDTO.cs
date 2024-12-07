@@ -29,13 +29,13 @@
 
     public class ForgotPasswordRequestDTO
     {
-        public string Email { get; set; } = string.Empty;
+        public string Email { get; set; } = null!;
     }
 
     public class VerifyResetCodeDTO
     {
-        public string Email { get; set; } = string.Empty;
-        public string ResetCode { get; set; } = string.Empty;
+        public string Email { get; set; } = null!;
+        public string ResetCode { get; set; } = null!;
     }
 
     public class ResetPasswordDTO

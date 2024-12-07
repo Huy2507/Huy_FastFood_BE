@@ -9,7 +9,6 @@ namespace Huy_FastFood_BE.Controllers.Customer
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Customer")]
     public class HomeController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -48,9 +47,61 @@ namespace Huy_FastFood_BE.Controllers.Customer
             }
         }
 
+        [Authorize(Roles = "Customer")]
+        [HttpGet("recent-orders")]
+        public async Task<IActionResult> GetRecentOrderedFoods()
+        {
+            try
+            {
+                // Lấy UserId từ JWT token
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "UserId");
+                if (userIdClaim == null)
+                {
+                    return Unauthorized(new { message = "Invalid token or user not authenticated." });
+                }
+
+                var accountId = int.Parse(userIdClaim.Value);
+
+                // Lấy thông tin khách hàng từ tài khoản
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.AccountId == accountId);
+                if (customer == null)
+                {
+                    return NotFound(new { message = "Customer not found." });
+                }
+
+                // Lấy danh sách món ăn từ các đơn hàng của khách hàng
+                var recentFoods = await _context.OrderItems
+                    .Where(oi => oi.Order != null && oi.Order.CustomerId == customer.CustomerId)
+                    .OrderByDescending(oi => oi.Order.OrderDate) // Sắp xếp theo ngày đặt hàng giảm dần
+                    .Take(5) // Giới hạn lấy tối thiểu 5 món
+                    .Select(oi => new
+                    {
+                        FoodId = oi.FoodId,
+                        FoodName = oi.Food.Name,
+                        Price = oi.Food.Price,
+                        ImageUrl = oi.Food.ImageUrl,
+                        Quantity = oi.Quantity,
+                        OrderDate = oi.Order.OrderDate
+                    })
+                    .ToListAsync();
+
+                if (!recentFoods.Any())
+                {
+                    return NotFound(new { message = "No recent orders found for this customer." });
+                }
+
+                return Ok(new { message = "Recent ordered foods retrieved successfully.", data = recentFoods });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving recent ordered foods.", error = ex.Message });
+            }
+        }
+
+
         // GET: api/Category/GetPagedCategories?pageNumber=1&pageSize=10
         [HttpGet("GetPagedCategories")]
-        public async Task<IActionResult> GetPagedCategories(int pageNumber = 1, int pageSize = 2)
+        public async Task<IActionResult> GetPagedCategories(int pageNumber = 1, int pageSize = 5)
         {
             try
             {
@@ -105,6 +156,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     .Include(f => f.Category)
                     .Select(f => new FoodFavoriteDTO
                     {
+                        FoodId = f.FoodId,
                         Name = f.Name,
                         Price = f.Price,
                         ImageUrl = f.ImageUrl,

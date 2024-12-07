@@ -9,7 +9,6 @@ namespace Huy_FastFood_BE.Controllers.Customer
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles ="Customer")]
     public class OrderController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -18,17 +17,43 @@ namespace Huy_FastFood_BE.Controllers.Customer
             _context = dbContext;
         }
 
+        [Authorize(Roles = "Customer")]
         [HttpPost("create-order")]
         public async Task<IActionResult> CreateOrderBy([FromBody] CreateOrderDTO dto)
         {
             try
             {
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "UserId");
+                if (userIdClaim == null)
+                {
+                    return Unauthorized(new { message = "Invalid token or user not authenticated." });
+                }
+
+                var accountId = int.Parse(userIdClaim.Value);
+
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.AccountId == accountId);
+                if (customer == null)
+                {
+                    return NotFound(new { message = "Customer not found." });
+                }
+
+                // Lấy giỏ hàng của khách hàng
+                var cart = await _context.Carts
+                    .Include(c => c.CartItems)
+                    .ThenInclude(ci => ci.Food)
+                    .FirstOrDefaultAsync(c => c.CustomerId == customer.CustomerId);
+
+                if (cart == null || !cart.CartItems.Any())
+                {
+                    return BadRequest(new { message = "Cart is empty or does not exist." });
+                }
+
                 // Tạo đơn hàng mới
                 var order = new Order
                 {
-                    CustomerId = dto.CustomerId,
+                    CustomerId = customer.CustomerId,
                     OrderDate = DateTime.UtcNow,
-                    TotalAmount = dto.TotalAmount,
+                    TotalAmount = (decimal)cart.TotalPrice,
                     Status = "Pending", // Trạng thái mặc định là chờ xác nhận
                     AddressId = dto.AddressId
                 };
@@ -36,19 +61,39 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
 
+                // Chuyển CartItems thành OrderItems
+                foreach (var cartItem in cart.CartItems)
+                {
+                    var orderItem = new OrderItem
+                    {
+                        OrderId = order.OrderId,
+                        FoodId = cartItem.FoodId,
+                        Quantity = cartItem.Quantity,
+                        Price = cartItem.Food.Price,
+                        TotalPrice = cartItem.Food.Price * cartItem.Quantity
+                    };
+                    _context.OrderItems.Add(orderItem);
+                }
+
+                // Xóa giỏ hàng sau khi tạo đơn hàng
+                _context.CartItems.RemoveRange(cart.CartItems);
+                _context.Carts.Remove(cart);
+
                 // Tạo Payment để theo dõi trạng thái thanh toán
                 var payment = new Payment
                 {
                     OrderId = order.OrderId,
                     PaymentMethod = "VNPay",
                     PaymentStatus = "Pending",
-                    Amount = dto.TotalAmount,
+                    Amount = order.TotalAmount,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 order.PaymentId = payment.PaymentId;
 
                 _context.Payments.Add(payment);
+
+                // Lưu tất cả thay đổi vào cơ sở dữ liệu
                 await _context.SaveChangesAsync();
 
                 return Ok(new
