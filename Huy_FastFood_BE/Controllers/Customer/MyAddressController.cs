@@ -39,6 +39,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
 
                 var addresses = await _context.Addresses
                     .Where(a => a.CustomerId == customer.CustomerId)
+                    .OrderByDescending(a => a.IsDefault)
                     .Select(a => new AddressDTO
                     {
                         Id = a.Id,

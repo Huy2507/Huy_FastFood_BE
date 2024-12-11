@@ -114,6 +114,65 @@ namespace Huy_FastFood_BE.Controllers
             return Ok(new { AccessToken = newAccessToken });
         }
 
+        [HttpPost("verify-access-token")]
+        public IActionResult VerifyAccessToken([FromBody] TokenRequest tokenRequest)
+        {
+            var token = tokenRequest.AccessToken;
+
+            if (string.IsNullOrEmpty(token))
+            {
+                return BadRequest(new { message = "Access token is required." });
+            }
+
+            try
+            {
+                // Lấy khóa bí mật từ cấu hình
+                var secretKey = _configuration["Jwt:Key"];
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+
+                // Các tham số để xác thực token
+                var tokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = _configuration["Jwt:Issuer"],
+                    ValidAudience = _configuration["Jwt:Audience"],
+                    IssuerSigningKey = key,
+                    ClockSkew = TimeSpan.Zero // Loại bỏ thời gian chênh lệch mặc định
+                };
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var validatedToken);
+
+                // Kiểm tra nếu token không phải là JWT
+                if (validatedToken is not JwtSecurityToken jwtToken || !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return Unauthorized(new { message = "Invalid token format." });
+                }
+
+                // Lấy thông tin từ claims
+                var userId = principal.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+                var roles = principal.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+
+                return Ok(new
+                {
+                    message = "Access token is valid.",
+                    userId = userId,
+                    roles = roles
+                });
+            }
+            catch (SecurityTokenExpiredException)
+            {
+                return Unauthorized(new { message = "Access token has expired." });
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { message = "Invalid token.", error = ex.Message });
+            }
+        }
+
         [HttpPost("Logout")]
         public async Task<IActionResult> Logout([FromBody] LogoutDTO request)
         {

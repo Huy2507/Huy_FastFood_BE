@@ -19,6 +19,8 @@ public partial class Order
 
     public int? AddressId { get; set; }
 
+    public string? Note { get; set; }
+
     public virtual Address? Address { get; set; }
 
     public virtual Customer? Customer { get; set; }

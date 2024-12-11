@@ -69,11 +69,21 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     return NotFound(new { message = "Customer not found." });
                 }
 
-                // Lấy danh sách món ăn từ các đơn hàng của khách hàng
-                var recentFoods = await _context.OrderItems
+                // Truy xuất dữ liệu từ cơ sở dữ liệu
+                var orderItems = await _context.OrderItems
                     .Where(oi => oi.Order != null && oi.Order.CustomerId == customer.CustomerId)
-                    .OrderByDescending(oi => oi.Order.OrderDate) // Sắp xếp theo ngày đặt hàng giảm dần
-                    .Take(5) // Giới hạn lấy tối thiểu 5 món
+                    .Include(oi => oi.Food) // Bao gồm thông tin món ăn
+                    .Include(oi => oi.Order) // Bao gồm thông tin đơn hàng
+                    .ToListAsync();
+
+                // Nhóm và sắp xếp trên phía máy khách
+                var recentFoods = orderItems
+                    .GroupBy(oi => oi.FoodId)
+                    .Select(group => group
+                        .OrderByDescending(oi => oi.Order.OrderDate)
+                        .First()) // Lấy món ăn gần nhất từ mỗi nhóm
+                    .OrderByDescending(oi => oi.Order.OrderDate) // Sắp xếp các món ăn theo ngày đặt hàng gần nhất
+                    .Take(10) // Giới hạn lấy tối đa 10 món
                     .Select(oi => new
                     {
                         FoodId = oi.FoodId,
@@ -83,7 +93,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                         Quantity = oi.Quantity,
                         OrderDate = oi.Order.OrderDate
                     })
-                    .ToListAsync();
+                    .ToList();
 
                 if (!recentFoods.Any())
                 {
@@ -97,6 +107,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 return StatusCode(500, new { message = "An error occurred while retrieving recent ordered foods.", error = ex.Message });
             }
         }
+
 
 
         // GET: api/Category/GetPagedCategories?pageNumber=1&pageSize=10

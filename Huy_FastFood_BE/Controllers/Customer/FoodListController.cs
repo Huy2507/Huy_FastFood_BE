@@ -123,7 +123,36 @@ namespace Huy_FastFood_BE.Controllers.Customer
             }
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetFoodById(int id)
+        {
+            try
+            {
+                var food = await _context.Foods
+                                  .Include(f => f.Category)
+                                  .FirstOrDefaultAsync(f => f.FoodId == id);
+                if (food == null)
+                    return NotFound(new { message = "Food not found" });
 
-
+                var foodDTO = new FoodDetailsDTO
+                {
+                    FoodId = food.FoodId,
+                    Name = food.Name,
+                    Description = food.Description,
+                    Price = food.Price,
+                    CategoryName = food.Category.CategoryName,
+                    ImageUrl = food.ImageUrl,
+                    SeoTitle = food.SeoTitle,
+                    SeoDescription = food.SeoDescription,
+                    SeoKeywords = food.SeoKeywords,
+                    Slug = food.Slug
+                };
+                return Ok(foodDTO);
+            }
+            catch (Exception)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving data from database");
+            }
+        }
     }
 }

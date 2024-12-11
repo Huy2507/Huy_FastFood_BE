@@ -154,7 +154,8 @@ namespace Huy_FastFood_BE.Controllers.Admin
                     OrderId = o.OrderId,
                     OrderDate = o.OrderDate,
                     TotalAmount = o.TotalAmount,
-                    Status = o.Status
+                    Status = o.Status,
+                    Note = o.Note
                 });
 
                 return Ok(orderDTOs);

@@ -55,7 +55,8 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     OrderDate = DateTime.UtcNow,
                     TotalAmount = (decimal)cart.TotalPrice,
                     Status = "Pending", // Trạng thái mặc định là chờ xác nhận
-                    AddressId = dto.AddressId
+                    AddressId = dto.AddressId,
+                    Note = dto.Note
                 };
 
                 _context.Orders.Add(order);
@@ -136,5 +137,72 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 return StatusCode(500, new { message = "An error occurred while confirming payment.", error = ex.Message });
             }
         }
+
+        [Authorize(Roles = "Customer")]
+        [HttpGet("orders")]
+        public async Task<IActionResult> GetCustomerOrders()
+        {
+            try
+            {
+                // Lấy UserId từ JWT token
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "UserId");
+                if (userIdClaim == null)
+                {
+                    return Unauthorized(new { message = "Invalid token or user not authenticated." });
+                }
+
+                var accountId = int.Parse(userIdClaim.Value);
+
+                // Lấy thông tin khách hàng từ tài khoản
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.AccountId == accountId);
+                if (customer == null)
+                {
+                    return NotFound(new { message = "Customer not found." });
+                }
+
+                // Lấy danh sách đơn hàng của khách hàng
+                var orders = await _context.Orders
+                    .Where(o => o.CustomerId == customer.CustomerId)
+                    .OrderByDescending(o => o.OrderDate) // Sắp xếp theo ngày đặt giảm dần
+                    .Select(o => new
+                    {
+                        OrderId = o.OrderId,
+                        OrderDate = o.OrderDate,
+                        Status = o.Status, // Trạng thái đơn hàng
+                        TotalPrice = o.TotalAmount, // Tổng giá trị
+                        DeliveryAddress = new // Địa chỉ giao hàng
+                        {
+                            AddressId = o.Address.Id,
+                            Street = o.Address.Street,
+                            City = o.Address.City,
+                            District = o.Address.District,
+                            Ward = o.Address.Ward,
+                            FullAddress = $"{o.Address.Street}, {o.Address.Ward}, {o.Address.District}, {o.Address.City}"
+                        },
+                        Items = o.OrderItems.Select(oi => new
+                        {
+                            FoodId = oi.FoodId,
+                            ImageUrl = oi.Food.ImageUrl,
+                            FoodName = oi.Food.Name,
+                            Quantity = oi.Quantity,
+                            Price = oi.Food.Price,
+                            TotalPrice = oi.TotalPrice
+                        }).ToList() // Chi tiết món ăn trong đơn hàng
+                    })
+                    .ToListAsync();
+
+                if (!orders.Any())
+                {
+                    return NotFound(new { message = "No orders found for this customer." });
+                }
+
+                return Ok(new { message = "Orders retrieved successfully.", data = orders });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving orders.", error = ex.Message });
+            }
+        }
+
     }
 }

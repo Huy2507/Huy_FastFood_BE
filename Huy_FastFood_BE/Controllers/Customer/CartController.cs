@@ -42,9 +42,10 @@ namespace Huy_FastFood_BE.Controllers.Customer
 
                 // Lấy các món ăn trong giỏ hàng
                 var cart = await _context.Carts
-                    .Include(c => c.CartItems)
-                    .ThenInclude(ci => ci.Food)
-                    .FirstOrDefaultAsync(c => c.CustomerId == customer.CustomerId);
+                        .Include(c => c.CartItems)
+                        .ThenInclude(ci => ci.Food)
+                        .AsNoTracking() // Thêm AsNoTracking nếu không cần theo dõi sự thay đổi của các entity này
+                        .FirstOrDefaultAsync(c => c.CustomerId == customer.CustomerId);
 
                 if (cart == null || !cart.CartItems.Any())
                 {
@@ -53,11 +54,13 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 var totalPrice = cart.TotalPrice;
                 var cartItems = cart.CartItems.Select(ci => new
                 {
+                    id = ci.CartItemId,
+                    ci.FoodId,
                     FoodName = ci.Food.Name,
-                    Price = ci.Food.Price,
-                    ImageUrl = ci.Food.ImageUrl,
-                    Quantity = ci.Quantity,
-                    TotalPrice = ci.TotalPrice,
+                    ci.Food.Price,
+                    ci.Food.ImageUrl,
+                    ci.Quantity,
+                    ci.TotalPrice,
                 }).ToList();
 
                 var result = new {totalPrice, cartItems};
@@ -117,6 +120,11 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     existingCartItem.Quantity += dto.Quantity;
                     existingCartItem.TotalPrice = food.Price * existingCartItem.Quantity;
                     existingCartItem.UpdatedAt = DateTime.UtcNow;
+                    // Tính lại tổng giá trị của giỏ hàng
+                    cart.TotalPrice = cart.CartItems.Sum(ci => ci.TotalPrice);
+
+                    await _context.SaveChangesAsync();
+                    return NoContent();
                 }
                 else
                 {

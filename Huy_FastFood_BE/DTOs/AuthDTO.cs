@@ -12,6 +12,11 @@
         public int UserId { get; set; }
     }
 
+    public class TokenRequest
+    {
+        public string AccessToken { get; set; }
+    }
+
     public class LogoutDTO
     {
         public string RefreshToken { get; set; } = null!;
