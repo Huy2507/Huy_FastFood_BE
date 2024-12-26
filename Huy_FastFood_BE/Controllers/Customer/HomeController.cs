@@ -69,11 +69,12 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     return NotFound(new { message = "Customer not found." });
                 }
 
-                // Truy xuất dữ liệu từ cơ sở dữ liệu
+                // Truy xuất dữ liệu từ cơ sở dữ liệu, chỉ lấy món ăn có Enable = true
                 var orderItems = await _context.OrderItems
                     .Where(oi => oi.Order != null && oi.Order.CustomerId == customer.CustomerId)
                     .Include(oi => oi.Food) // Bao gồm thông tin món ăn
                     .Include(oi => oi.Order) // Bao gồm thông tin đơn hàng
+                    .Where(oi => oi.Food.Enable == true) // Lọc món ăn có Enable = true
                     .ToListAsync();
 
                 // Nhóm và sắp xếp trên phía máy khách
@@ -107,8 +108,6 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 return StatusCode(500, new { message = "An error occurred while retrieving recent ordered foods.", error = ex.Message });
             }
         }
-
-
 
         // GET: api/Category/GetPagedCategories?pageNumber=1&pageSize=10
         [HttpGet("GetPagedCategories")]

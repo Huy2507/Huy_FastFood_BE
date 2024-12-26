@@ -17,8 +17,6 @@ public partial class Food
 
     public string? ImageUrl { get; set; }
 
-    public string? Enable { get; set; }
-
     public string? SeoTitle { get; set; }
 
     public string? SeoDescription { get; set; }
@@ -32,6 +30,8 @@ public partial class Food
     public DateTime? UpdatedAt { get; set; }
 
     public bool IsPopular { get; set; }
+
+    public bool? Enable { get; set; }
 
     public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
 

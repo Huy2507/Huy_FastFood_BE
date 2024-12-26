@@ -169,7 +169,8 @@ namespace Huy_FastFood_BE.Controllers.Customer
                         OrderId = o.OrderId,
                         OrderDate = o.OrderDate,
                         Status = o.Status, // Trạng thái đơn hàng
-                        TotalPrice = o.TotalAmount, // Tổng giá trị
+                        TotalPrice = o.TotalAmount,
+                        Note = o.Note, // Tổng giá trị
                         DeliveryAddress = new // Địa chỉ giao hàng
                         {
                             AddressId = o.Address.Id,

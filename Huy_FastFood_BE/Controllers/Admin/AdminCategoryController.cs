@@ -20,32 +20,47 @@ namespace Huy_FastFood_BE.Controllers.Admin
             _context = context;
         }
 
-        // Get all categories
+        // Get all categories with optional search string
         [HttpGet]
-        public async Task<IActionResult> GetCategories()
+        public async Task<IActionResult> GetCategories([FromQuery] string? search)
         {
             try
             {
-                var categories = await _context.Categories
-                .Select(c => new CategoryDTO
+                // Build the query
+                var query = _context.Categories.AsQueryable();
+
+                // Apply filter if search string is provided
+                if (!string.IsNullOrEmpty(search))
                 {
-                    CategoryId = c.CategoryId,
-                    CategoryName = c.CategoryName,
-                    Description = c.Description,
-                    SeoTitle = c.SeoTitle,
-                    SeoDescription = c.SeoDescription,
-                    SeoKeywords = c.SeoKeywords,
-                    Slug = c.Slug,
-                    ImgUrl = c.ImgUrl
-                }).ToListAsync();
+                    query = query.Where(c => c.CategoryName.Contains(search) ||
+                                              c.Description.Contains(search) ||
+                                              c.CategoryId.ToString().Contains(search));
+                }
+
+                // Select the desired fields
+                var categories = await query
+                    .Select(c => new CategoryDTO
+                    {
+                        CategoryId = c.CategoryId,
+                        CategoryName = c.CategoryName,
+                        Description = c.Description,
+                        SeoTitle = c.SeoTitle,
+                        SeoDescription = c.SeoDescription,
+                        SeoKeywords = c.SeoKeywords,
+                        Slug = c.Slug,
+                        ImgUrl = c.ImgUrl
+                    })
+                    .ToListAsync();
 
                 return Ok(categories);
             }
             catch (Exception)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, "Error saving data to database");
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error retrieving data from database");
             }
         }
+
+
 
         // Get category by ID
         [HttpGet("{id}")]

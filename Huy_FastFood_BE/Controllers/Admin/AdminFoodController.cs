@@ -24,61 +24,56 @@ namespace Huy_FastFood_BE.Controllers.Admin
             _dbContext = dbContext;
         }
 
-        // Phương thức ánh xạ từ entity sang DTO
-        private FoodDTO MapToDTO(Food food)
-        {
-            return new FoodDTO
-            {
-                FoodId = food.FoodId,
-                Name = food.Name,
-                Description = food.Description,
-                Price = food.Price,
-                CategoryId = food.CategoryId,
-                ImageUrl = food.ImageUrl,
-                Enable = food.Enable,
-                IsPopular = food.IsPopular,
-                SeoTitle = food.SeoTitle,
-                SeoDescription = food.SeoDescription,
-                SeoKeywords = food.SeoKeywords,
-                Slug = food.Slug,
-                CreatedAt = food.CreatedAt,
-                UpdatedAt = food.UpdatedAt
-            };
-        }
-
-        // Phương thức ánh xạ từ DTO sang entity
-        private Food MapToEntity(FoodDTO foodDTO)
-        {
-            return new Food
-            {
-                FoodId = foodDTO.FoodId,
-                Name = foodDTO.Name,
-                Description = foodDTO.Description,
-                Price = foodDTO.Price,
-                CategoryId = foodDTO.CategoryId,
-                ImageUrl = foodDTO.ImageUrl,
-                Enable = foodDTO.Enable,
-                IsPopular= foodDTO.IsPopular,
-                SeoTitle = foodDTO.SeoTitle,
-                SeoDescription = foodDTO.SeoDescription,
-                SeoKeywords = foodDTO.SeoKeywords,
-                Slug = foodDTO.Slug,
-                CreatedAt = foodDTO.CreatedAt,
-                UpdatedAt = foodDTO.UpdatedAt
-            };
-        }
-
-
         // Lấy danh sách tất cả món ăn
         [HttpGet]
-        public async Task<IActionResult> GetAllFoods()
+        public async Task<IActionResult> GetAllFoods(
+    string? search = null,
+    bool? enable = null,
+    bool? isPopular = null)
         {
             try
             {
-                var foods = await _dbContext.Foods.ToListAsync();
-                var foodDTOs = foods.Select(food => MapToDTO(food)).ToList();
+                var query = _dbContext.Foods.Include(f => f.Category).AsQueryable();
 
-                return Ok(foodDTOs);
+                // Lọc theo tên hoặc mô tả
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(f =>
+                        f.Name.Contains(search) || f.Description.Contains(search) || f.FoodId.ToString().Contains(search));
+                }
+
+                // Lọc theo khả dụng
+                if (enable.HasValue)
+                {
+                    query = query.Where(f => f.Enable == enable.Value);
+                }
+
+                // Lọc theo phổ biến
+                if (isPopular.HasValue)
+                {
+                    query = query.Where(f => f.IsPopular == isPopular.Value);
+                }
+
+                // Chuyển đổi dữ liệu sang DTO
+                var foods = await query.Select(f => new FoodDTO
+                {
+                    FoodId = f.FoodId,
+                    Name = f.Name,
+                    Description = f.Description,
+                    Price = f.Price,
+                    CategoryName = f.Category.CategoryName,
+                    ImageUrl = f.ImageUrl,
+                    Enable = f.Enable,
+                    IsPopular = f.IsPopular,
+                    SeoTitle = f.SeoTitle,
+                    SeoDescription = f.SeoDescription,
+                    SeoKeywords = f.SeoKeywords,
+                    Slug = f.Slug,
+                    CreatedAt = f.CreatedAt,
+                    UpdatedAt = f.UpdatedAt
+                }).ToListAsync();
+
+                return Ok(foods);
             }
             catch (Exception)
             {
@@ -86,18 +81,37 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
         // Lấy món ăn theo ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetFoodById(int id)
         {
             try
             {
-                var food = await _dbContext.Foods.FindAsync(id);
+                var food = await _dbContext.Foods
+                    .Where(f => f.FoodId == id)
+                    .Select(f => new FoodDTO
+                {
+                    FoodId = f.FoodId,
+                    Name = f.Name,
+                    Description = f.Description,
+                    Price = f.Price,
+                    CategoryId = f.Category.CategoryId,
+                    CategoryName = f.Category.CategoryName,
+                    ImageUrl = f.ImageUrl,
+                    Enable = f.Enable,
+                    IsPopular = f.IsPopular,
+                    SeoTitle = f.SeoTitle,
+                    SeoDescription = f.SeoDescription,
+                    SeoKeywords = f.SeoKeywords,
+                    Slug = f.Slug,
+                    CreatedAt = f.CreatedAt,
+                    UpdatedAt = f.UpdatedAt
+                }).FirstOrDefaultAsync();
                 if (food == null)
                     return NotFound(new { message = "Food not found" });
 
-                var foodDTO = MapToDTO(food);
-                return Ok(foodDTO);
+                return Ok(food);
             }
             catch (Exception)
             {
@@ -164,7 +178,23 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 await _dbContext.SaveChangesAsync();
 
                 // Chuyển đổi sang DTO
-                var createdFoodDTO = MapToDTO(food);
+                var createdFoodDTO = new FoodDTO
+                {
+                    FoodId = food.FoodId,
+                    Name = food.Name,
+                    Description = food.Description,
+                    Price = food.Price,
+                    CategoryName = food.Category.CategoryName,
+                    ImageUrl = food.ImageUrl,
+                    Enable = food.Enable,
+                    IsPopular = food.IsPopular,
+                    SeoTitle = food.SeoTitle,
+                    SeoDescription = food.SeoDescription,
+                    SeoKeywords = food.SeoKeywords,
+                    Slug = food.Slug,
+                    CreatedAt = food.CreatedAt,
+                    UpdatedAt = food.UpdatedAt
+                };
                 return CreatedAtAction(nameof(GetFoodById), new { id = food.FoodId }, createdFoodDTO);
             }
             catch (Exception ex)

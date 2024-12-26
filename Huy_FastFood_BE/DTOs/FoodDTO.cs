@@ -9,9 +9,10 @@ namespace Huy_FastFood_BE.DTOs
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
         public decimal Price { get; set; }
-        public int? CategoryId { get; set; }
+        public int CategoryId { get; set; }
+        public string? CategoryName { get; set; }
         public string? ImageUrl { get; set; }
-        public string? Enable { get; set; }
+        public bool? Enable { get; set; }
         public bool IsPopular { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
@@ -28,8 +29,9 @@ namespace Huy_FastFood_BE.DTOs
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
         public decimal Price { get; set; }
+
         public string CategoryName { get; set; }
-        public string? ImageUrl { get; set; }
+        public string? ImageUrl { get; set; } = null;
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }
         public string? SeoKeywords { get; set; }
@@ -41,7 +43,7 @@ namespace Huy_FastFood_BE.DTOs
         public string Name { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }
-        public string Enable { get; set; }
+        public bool? Enable { get; set; }
         public bool IsPopular { get; set; }
         public int CategoryId { get; set; }
         public string? SeoKeywords { get; set; }
@@ -60,7 +62,7 @@ namespace Huy_FastFood_BE.DTOs
         public decimal Price { get; set; }
         public string? CategoryName { get; set; }
         public string? ImageUrl { get; set; }
-        public string? Enable { get; set; }
+        public bool? Enable { get; set; }
         public bool IsPopular { get; set; }
         public string? SeoTitle { get; set; }
         public string? SeoDescription { get; set; }

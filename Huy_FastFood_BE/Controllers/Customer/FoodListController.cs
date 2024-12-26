@@ -32,8 +32,8 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     return BadRequest(new { message = "Invalid page or pageSize parameters." });
                 }
 
-                // Lọc món ăn theo từ khóa tìm kiếm
-                var foodsQuery = _context.Foods.AsQueryable();
+                // Lọc món ăn theo từ khóa tìm kiếm và đảm bảo chỉ lấy những món ăn có Enable = true
+                var foodsQuery = _context.Foods.Where(f => f.Enable == true).AsQueryable();
                 if (!string.IsNullOrEmpty(searchTerm))
                 {
                     foodsQuery = foodsQuery.Where(f =>
@@ -50,7 +50,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                         Slug = c.Slug
                     }).ToListAsync();
 
-                // Lọc món ăn phổ biến
+                // Lọc món ăn phổ biến và đảm bảo chỉ lấy những món ăn có Enable = true
                 var popularFoods = await foodsQuery
                     .Where(f => f.IsPopular == true)
                     .Select(f => new FoodFavoriteDTO
@@ -122,6 +122,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 });
             }
         }
+
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetFoodById(int id)
