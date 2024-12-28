@@ -25,13 +25,37 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // GET: api/Account
         [HttpGet]
-        public async Task<IActionResult> GetAllAccounts()
+        public async Task<IActionResult> GetAllAccounts(
+            string? search, // Search parameter for both AccountId and Username
+            bool? isActive,
+            string? role)
         {
             try
             {
-                var accounts = await _dbContext.Accounts
+                var query = _dbContext.Accounts
                     .Include(a => a.UserRoles)
                     .ThenInclude(ur => ur.Role)
+                    .AsQueryable();
+
+                // If 'search' parameter is provided, filter by AccountId or Username
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(a => a.AccountId.ToString().Contains(search) || a.Username.Contains(search));
+                }
+
+                // Filter by IsActive if provided
+                if (isActive.HasValue)
+                {
+                    query = query.Where(a => a.IsActive == isActive.Value);
+                }
+
+                // Filter by Role if provided
+                if (!string.IsNullOrEmpty(role))
+                {
+                    query = query.Where(a => a.UserRoles.Any(ur => ur.Role.RoleName.Contains(role)));
+                }
+
+                var accounts = await query
                     .Select(a => new AccountDTO
                     {
                         AccountId = a.AccountId,
@@ -51,6 +75,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
         // GET: api/Account/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetAccountById(int id)
@@ -65,14 +90,14 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (account == null)
                     return NotFound(new { message = "Account not found." });
 
-                var accountDto = new AccountDTO
+                var accountDto = new AccountDetailDTO
                 {
                     AccountId = account.AccountId,
                     Username = account.Username,
                     IsActive = account.IsActive,
                     CreatedAt = account.CreatedAt,
                     UpdatedAt = account.UpdatedAt,
-                    Roles = account.UserRoles.Select(ur => ur.Role.RoleName).ToList()
+                    Roles = account.UserRoles.Select(ur => ur.Role.RoleId).ToList()
                 };
 
                 return Ok(accountDto);
@@ -85,7 +110,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // POST: api/Account
         [HttpPost]
-        public async Task<IActionResult> CreateAccount([FromBody] CreateOrUpdateAccountDTO dto)
+        public async Task<IActionResult> CreateAccount([FromBody] CreateAccountDTO dto)
         {
             try
             {
@@ -97,7 +122,8 @@ namespace Huy_FastFood_BE.Controllers.Admin
                     Username = dto.Username,
                     Password = PasswordHasher.HashPassword(dto.Password),
                     IsActive = dto.IsActive,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 foreach (var roleId in dto.RoleIds)
@@ -122,13 +148,10 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // PUT: api/Account/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAccount(int id, [FromBody] CreateOrUpdateAccountDTO dto)
+        public async Task<IActionResult> UpdateAccount(int id, [FromBody] UpdateAccountDTO dto)
         {
             try
             {
-                if (await _dbContext.Accounts.AnyAsync(a => a.Username == dto.Username))
-                    return BadRequest(new { message = "Username already exists." });
-
                 var account = await _dbContext.Accounts
                     .Include(a => a.UserRoles)
                     .FirstOrDefaultAsync(a => a.AccountId == id);
@@ -137,10 +160,9 @@ namespace Huy_FastFood_BE.Controllers.Admin
                     return NotFound(new { message = "Account not found." });
 
                 // Cập nhật thông tin tài khoản
-                account.Username = dto.Username;
                 account.Password = PasswordHasher.HashPassword(dto.Password);
                 account.IsActive = dto.IsActive;
-                account.UpdatedAt = DateTime.UtcNow;
+                account.UpdatedAt = DateTime.Now;
 
                 // Danh sách vai trò hiện tại
                 var currentRoleIds = account.UserRoles.Select(ur => ur.RoleId).ToList();

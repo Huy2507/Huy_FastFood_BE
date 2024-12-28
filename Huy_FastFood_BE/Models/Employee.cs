@@ -23,5 +23,9 @@ public partial class Employee
 
     public DateTime? UpdatedAt { get; set; }
 
+    public bool IsActive { get; set; }
+
+    public DateTime? LeaveDate { get; set; }
+
     public virtual Account? Account { get; set; }
 }

@@ -52,7 +52,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 var order = new Order
                 {
                     CustomerId = customer.CustomerId,
-                    OrderDate = DateTime.UtcNow,
+                    OrderDate = DateTime.Now,
                     TotalAmount = (decimal)cart.TotalPrice,
                     Status = "Pending", // Trạng thái mặc định là chờ xác nhận
                     AddressId = dto.AddressId,
@@ -87,7 +87,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     PaymentMethod = "VNPay",
                     PaymentStatus = "Pending",
                     Amount = order.TotalAmount,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 order.PaymentId = payment.PaymentId;
@@ -121,7 +121,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     return NotFound(new { message = "Payment not found or invalid method." });
 
                 payment.PaymentStatus = "Paid";
-                payment.UpdatedAt = DateTime.UtcNow;
+                payment.UpdatedAt = DateTime.Now;
 
                 var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
                 if (order != null)

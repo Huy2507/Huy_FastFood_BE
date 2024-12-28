@@ -119,7 +119,6 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
-        // Thêm món ăn mới
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> AddFood([FromForm] FoodCreateDTO foodDTO)
@@ -128,6 +127,16 @@ namespace Huy_FastFood_BE.Controllers.Admin
             {
                 if (foodDTO == null)
                     return BadRequest(new { message = "Invalid food data" });
+
+                // Kiểm tra xem món ăn đã tồn tại với tên này chưa
+                var existingFood = await _dbContext.Foods
+                    .Where(f => f.Name == foodDTO.Name)
+                    .FirstOrDefaultAsync();
+
+                if (existingFood != null)
+                {
+                    return BadRequest(new { message = "Food name already exists. Please enter a different name." });
+                }
 
                 string imageUrl = null;
 
@@ -169,42 +178,21 @@ namespace Huy_FastFood_BE.Controllers.Admin
                     SeoDescription = foodDTO.SeoDescription,
                     SeoTitle = foodDTO.SeoTitle,
                     Slug = SlugHelper.GenerateSlug(foodDTO.Name),
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 // Lưu vào database
                 await _dbContext.Foods.AddAsync(food);
                 await _dbContext.SaveChangesAsync();
 
-                // Chuyển đổi sang DTO
-                var createdFoodDTO = new FoodDTO
-                {
-                    FoodId = food.FoodId,
-                    Name = food.Name,
-                    Description = food.Description,
-                    Price = food.Price,
-                    CategoryName = food.Category.CategoryName,
-                    ImageUrl = food.ImageUrl,
-                    Enable = food.Enable,
-                    IsPopular = food.IsPopular,
-                    SeoTitle = food.SeoTitle,
-                    SeoDescription = food.SeoDescription,
-                    SeoKeywords = food.SeoKeywords,
-                    Slug = food.Slug,
-                    CreatedAt = food.CreatedAt,
-                    UpdatedAt = food.UpdatedAt
-                };
-                return CreatedAtAction(nameof(GetFoodById), new { id = food.FoodId }, createdFoodDTO);
+                return NoContent();
             }
             catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Error saving data to database", error = ex.Message });
             }
         }
-
-
-        // Cập nhật món ăn
         [HttpPut("{id}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateFood(int id, [FromForm] FoodCreateDTO foodDTO)
@@ -214,6 +202,16 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 var food = await _dbContext.Foods.FindAsync(id);
                 if (food == null)
                     return NotFound(new { message = "Food not found" });
+
+                // Kiểm tra xem món ăn khác có tên giống món ăn này không
+                var existingFood = await _dbContext.Foods
+                    .Where(f => f.Name == foodDTO.Name)
+                    .FirstOrDefaultAsync();
+
+                if (existingFood != null)
+                {
+                    return BadRequest(new { message = "Food name already exists. Please enter a different name." });
+                }
 
                 string imageUrl = food.ImageUrl; // Giữ ảnh cũ nếu không tải ảnh mới
 
@@ -263,7 +261,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 food.SeoDescription = foodDTO.SeoDescription;
                 food.SeoTitle = foodDTO.SeoTitle;
                 food.Slug = SlugHelper.GenerateSlug(foodDTO.Name);
-                food.UpdatedAt = DateTime.UtcNow;
+                food.UpdatedAt = DateTime.Now;
 
                 _dbContext.Foods.Update(food);
                 await _dbContext.SaveChangesAsync();
@@ -275,6 +273,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Error updating data", error = ex.Message });
             }
         }
+
 
     }
 }

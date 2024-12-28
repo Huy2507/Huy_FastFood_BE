@@ -211,7 +211,7 @@ namespace Huy_FastFood_BE.Controllers
                 {
                     Username = registerDTO.Username,
                     Password = hashedPassword,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     IsActive = true
                 };
 
@@ -226,7 +226,7 @@ namespace Huy_FastFood_BE.Controllers
                     Name = registerDTO.Name,
                     Phone = registerDTO.Phone,
                     Email = registerDTO.Email,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 _context.Customers.Add(customer);

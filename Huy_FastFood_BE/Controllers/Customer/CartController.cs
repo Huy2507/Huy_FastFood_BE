@@ -106,7 +106,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     cart = new Cart
                     {
                         CustomerId = customerId,
-                        CreatedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.Now,
                         CartItems = new List<CartItem>()
                     };
                     _context.Carts.Add(cart);
@@ -119,7 +119,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 {
                     existingCartItem.Quantity += dto.Quantity;
                     existingCartItem.TotalPrice = food.Price * existingCartItem.Quantity;
-                    existingCartItem.UpdatedAt = DateTime.UtcNow;
+                    existingCartItem.UpdatedAt = DateTime.Now;
                     // Tính lại tổng giá trị của giỏ hàng
                     cart.TotalPrice = cart.CartItems.Sum(ci => ci.TotalPrice);
 
@@ -138,7 +138,7 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     {
                         FoodId = dto.FoodId,
                         Quantity = dto.Quantity,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.Now
                     };
                     newCartItem.TotalPrice = food.Price * newCartItem.Quantity;
                     cart.CartItems.Add(newCartItem);

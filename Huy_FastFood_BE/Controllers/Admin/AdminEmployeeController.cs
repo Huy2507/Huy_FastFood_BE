@@ -21,14 +21,38 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // GET: api/Employee
         [HttpGet]
-        public async Task<IActionResult> GetAllEmployees()
+        public async Task<IActionResult> GetAllEmployees([FromQuery] string? search, [FromQuery] bool? isActive)
         {
             try
             {
-                var employees = await _dbContext.Employees
-                    .Include(e => e.Account) // Include related account if needed
-                    .ToListAsync();
+                // Truy vấn cơ bản ban đầu
+                var query = _dbContext.Employees
+                    .Include(e => e.Account)
+                    .AsQueryable();
 
+                // Áp dụng bộ lọc theo trạng thái hoạt động nếu được truyền vào
+                if (isActive.HasValue)
+                {
+                    query = query.Where(e => e.IsActive == isActive.Value);
+                }
+
+                // Thực hiện truy vấn và chuyển sang xử lý phía client
+                var employees = await query.ToListAsync();
+
+                // Áp dụng tìm kiếm phía client nếu chuỗi tìm kiếm được truyền vào
+                if (!string.IsNullOrEmpty(search))
+                {
+                    employees = employees
+                        .Where(e =>
+                            e.EmployeeId.ToString().Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrEmpty(e.Name) && e.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                            (!string.IsNullOrEmpty(e.Position) && e.Position.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                            (!string.IsNullOrEmpty(e.Phone) && e.Phone.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                            (!string.IsNullOrEmpty(e.Email) && e.Email.Contains(search, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+                }
+
+                // Ánh xạ dữ liệu sang DTO
                 var employeeDTOs = employees.Select(e => new EmployeeDTO
                 {
                     EmployeeId = e.EmployeeId,
@@ -39,6 +63,8 @@ namespace Huy_FastFood_BE.Controllers.Admin
                     Phone = e.Phone,
                     Email = e.Email,
                     HireDate = e.HireDate,
+                    LeaveDate = e.LeaveDate,
+                    IsActive = e.IsActive,
                     CreatedAt = e.CreatedAt,
                     UpdatedAt = e.UpdatedAt
                 });
@@ -51,6 +77,9 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
+
+
         // GET: api/Employee/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetEmployeeById(int id)
@@ -58,11 +87,16 @@ namespace Huy_FastFood_BE.Controllers.Admin
             try
             {
                 var employee = await _dbContext.Employees
-                    .Include(e => e.Account) // Include account details
+                    .Include(e => e.Account)
                     .FirstOrDefaultAsync(e => e.EmployeeId == id);
 
                 if (employee == null)
                     return NotFound(new { message = "Employee not found." });
+
+                var account = await _dbContext.Accounts.Where(a => a.AccountId == employee.AccountId)
+                    .Include(a => a.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync();
 
                 var employeeDTO = new EmployeeDTO
                 {
@@ -71,9 +105,12 @@ namespace Huy_FastFood_BE.Controllers.Admin
                     Username = employee.Account?.Username,
                     Name = employee.Name,
                     Position = employee.Position,
+                    RoleIds = account.UserRoles.Select(ur => ur.Role.RoleId).ToList(),
                     Phone = employee.Phone,
                     Email = employee.Email,
                     HireDate = employee.HireDate,
+                    LeaveDate = employee.LeaveDate,
+                    IsActive = employee.IsActive,
                     CreatedAt = employee.CreatedAt,
                     UpdatedAt = employee.UpdatedAt
                 };
@@ -86,36 +123,48 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
         // POST: api/Employee
         [HttpPost]
         public async Task<IActionResult> CreateEmployee([FromBody] CreateEmployeeDTO employeeDTO)
         {
             try
             {
-                // Create Account
                 var newAccount = new Account
                 {
                     Username = employeeDTO.Username,
                     Password = PasswordHasher.HashPassword(employeeDTO.Password),
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
+
+                foreach (var roleId in employeeDTO.RoleIds)
+                {
+                    var role = await _dbContext.Roles.FindAsync(roleId);
+                    if (role != null)
+                    {
+                        newAccount.UserRoles.Add(new UserRole { RoleId = roleId });
+                    }
+                }
 
                 await _dbContext.Accounts.AddAsync(newAccount);
                 await _dbContext.SaveChangesAsync();
 
-                // Create Employee
+                // Nối các vai trò thành một chuỗi (ví dụ: "Admin, Manager, Developer")
+                var roleNames = newAccount.UserRoles.Select(ur => ur.Role.RoleName).ToList();
+                var positions = string.Join(", ", roleNames); // Nối các tên vai trò thành một chuỗi
+
                 var newEmployee = new Employee
                 {
                     AccountId = newAccount.AccountId,
                     Name = employeeDTO.Name,
-                    Position = employeeDTO.Position,
+                    Position = positions, // Gán chuỗi vai trò vào Position
                     Phone = employeeDTO.Phone,
                     Email = employeeDTO.Email,
                     HireDate = employeeDTO.HireDate,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 await _dbContext.Employees.AddAsync(newEmployee);
@@ -129,9 +178,10 @@ namespace Huy_FastFood_BE.Controllers.Admin
             }
         }
 
+
         // PUT: api/Employee/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateEmployee(int id, [FromBody] EmployeeDTO employeeDTO)
+        public async Task<IActionResult> UpdateEmployee(int id, [FromBody] UpdateEmployeeDTO employeeDTO)
         {
             try
             {
@@ -140,14 +190,37 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (existingEmployee == null)
                     return NotFound(new { message = "Employee not found." });
 
+                // Cập nhật các thông tin cơ bản của nhân viên
                 existingEmployee.Name = employeeDTO.Name;
-                existingEmployee.Position = employeeDTO.Position;
                 existingEmployee.Phone = employeeDTO.Phone;
                 existingEmployee.Email = employeeDTO.Email;
-                existingEmployee.HireDate = employeeDTO.HireDate;
-                existingEmployee.UpdatedAt = DateTime.UtcNow;
+                existingEmployee.LeaveDate = employeeDTO.LeaveDate;
+                existingEmployee.IsActive = employeeDTO.IsActive;
+                existingEmployee.UpdatedAt = DateTime.Now;
 
-                _dbContext.Employees.Update(existingEmployee);
+                // Cập nhật vai trò của nhân viên
+                var existingRoles = _dbContext.UserRoles.Where(ur => ur.AccountId == existingEmployee.AccountId).ToList();
+
+                // Xóa vai trò cũ
+                _dbContext.UserRoles.RemoveRange(existingRoles);
+
+                // Tạo danh sách tên vai trò từ bảng Role
+                List<string> newRoles = new List<string>();
+
+                // Thêm vai trò mới và lấy danh sách tên vai trò
+                foreach (var roleId in employeeDTO.RoleIds)
+                {
+                    var role = await _dbContext.Roles.FindAsync(roleId);
+                    if (role != null)
+                    {
+                        _dbContext.UserRoles.Add(new UserRole { AccountId = (int)existingEmployee.AccountId, RoleId = roleId });
+                        newRoles.Add(role.RoleName);  // Thêm tên vai trò vào danh sách
+                    }
+                }
+
+                // Cập nhật trường Position với danh sách vai trò
+                existingEmployee.Position = string.Join(", ", newRoles);  // Gộp các tên vai trò thành chuỗi
+
                 await _dbContext.SaveChangesAsync();
 
                 return Ok(new { message = "Employee updated successfully." });
@@ -157,6 +230,9 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
+
+
+
 
         // DELETE: api/Employee/{id}
         [HttpDelete("{id}")]

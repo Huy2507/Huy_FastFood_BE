@@ -30,12 +30,39 @@ public class AdminRoleController : ControllerBase
                 })
                 .ToListAsync();
 
-            return Ok(roles);  // Trả về mã 200 OK và dữ liệu
+            return Ok(roles);
         }
         catch (Exception ex)
         {
-            // Log lỗi (nếu cần)
-            return StatusCode(500, "Internal server error: " + ex.Message);  // Trả về mã 500 nếu có lỗi
+            return StatusCode(500, "Internal server error: " + ex.Message);
+        }
+    }
+
+    // Lấy vai trò theo ID
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetRoleById(int id)
+    {
+        try
+        {
+            var role = await _context.Roles
+                .Where(r => r.RoleId == id)
+                .Select(r => new RoleDTO
+                {
+                    RoleId = r.RoleId,
+                    RoleName = r.RoleName
+                })
+                .FirstOrDefaultAsync();
+
+            if (role == null)
+            {
+                return NotFound("Role not found.");
+            }
+
+            return Ok(role);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, "Internal server error: " + ex.Message);
         }
     }
 
@@ -47,7 +74,7 @@ public class AdminRoleController : ControllerBase
         {
             if (roleDTO == null)
             {
-                return BadRequest("Invalid data.");  // Trả về mã 400 nếu dữ liệu không hợp lệ
+                return BadRequest("Invalid data.");
             }
 
             var role = new Role
@@ -60,12 +87,11 @@ public class AdminRoleController : ControllerBase
 
             roleDTO.RoleId = role.RoleId;
 
-            return CreatedAtAction(nameof(GetRoles), new { id = roleDTO.RoleId }, roleDTO);  // Trả về mã 201 Created
+            return CreatedAtAction(nameof(GetRoleById), new { id = roleDTO.RoleId }, roleDTO);
         }
         catch (Exception ex)
         {
-            // Log lỗi (nếu cần)
-            return StatusCode(500, "Internal server error: " + ex.Message);  // Trả về mã 500 nếu có lỗi
+            return StatusCode(500, "Internal server error: " + ex.Message);
         }
     }
 
@@ -77,25 +103,24 @@ public class AdminRoleController : ControllerBase
         {
             if (roleDTO == null)
             {
-                return BadRequest("Invalid data.");  // Trả về mã 400 nếu dữ liệu không hợp lệ
+                return BadRequest("Invalid data.");
             }
 
             var role = await _context.Roles.FindAsync(id);
             if (role == null)
             {
-                return NotFound("Role not found.");  // Trả về mã 404 nếu không tìm thấy vai trò
+                return NotFound("Role not found.");
             }
 
             role.RoleName = roleDTO.RoleName;
             _context.Roles.Update(role);
             await _context.SaveChangesAsync();
 
-            return Ok(role);  // Trả về mã 200 OK và dữ liệu đã cập nhật
+            return Ok(role);
         }
         catch (Exception ex)
         {
-            // Log lỗi (nếu cần)
-            return StatusCode(500, "Internal server error: " + ex.Message);  // Trả về mã 500 nếu có lỗi
+            return StatusCode(500, "Internal server error: " + ex.Message);
         }
     }
 
@@ -108,18 +133,17 @@ public class AdminRoleController : ControllerBase
             var role = await _context.Roles.FindAsync(id);
             if (role == null)
             {
-                return NotFound("Role not found.");  // Trả về mã 404 nếu không tìm thấy vai trò
+                return NotFound("Role not found.");
             }
 
             _context.Roles.Remove(role);
             await _context.SaveChangesAsync();
 
-            return NoContent();  // Trả về mã 204 No Content sau khi xóa thành công
+            return NoContent();
         }
         catch (Exception ex)
         {
-            // Log lỗi (nếu cần)
-            return StatusCode(500, "Internal server error: " + ex.Message);  // Trả về mã 500 nếu có lỗi
+            return StatusCode(500, "Internal server error: " + ex.Message);
         }
     }
 }
