@@ -21,7 +21,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
         // GET: api/AdminCustomer
         [HttpGet]
-        public async Task<IActionResult> GetAllCustomers([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllCustomers([FromQuery] string? search)
         {
             try
             {
@@ -31,6 +31,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (!string.IsNullOrEmpty(search))
                 {
                     query = query.Where(c =>
+                    c.CustomerId.ToString().Contains(search) ||
                         c.Name.Contains(search) ||
                         c.Phone.Contains(search) ||
                         c.Email.Contains(search));
@@ -41,41 +42,20 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 var customers = await query
                     .Include(c => c.Addresses)
                     .Include(c => c.Orders)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
                     .ToListAsync();
 
                 var customerDTOs = customers.Select(c => new CustomerDTO
                 {
                     CustomerId = c.CustomerId,
+                    AccountId = c.AccountId,
                     Name = c.Name,
                     Phone = c.Phone,
                     Email = c.Email,
-                    Addresses = c.Addresses.Select(a => new AddressDTO
-                    {
-                        Id = a.Id,
-                        Street = a.Street,
-                        Ward = a.Ward,
-                        District = a.District,
-                        City = a.City,
-                        IsDefault = a.IsDefault,
-                    }).ToList(),
-                    Orders = c.Orders.Select(o => new OrderDTO
-                    {
-                        OrderId = o.OrderId,
-                        OrderDate = o.OrderDate,
-                        TotalAmount = o.TotalAmount,
-                        Status = o.Status
-                    }).ToList()
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt,
                 });
 
-                return Ok(new
-                {
-                    TotalRecords = totalRecords,
-                    Page = page,
-                    PageSize = pageSize,
-                    Data = customerDTOs
-                });
+                return Ok(customerDTOs);
             }
             catch (Exception ex)
             {
@@ -89,22 +69,28 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
+                // Fetch customer with related data
                 var customer = await _dbContext.Customers
                     .Include(c => c.Addresses)
                     .Include(c => c.Orders)
-                    .ThenInclude(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Food)
+                        .ThenInclude(o => o.Payments)
+                    .Include(c => c.Orders)
+                        .ThenInclude(o => o.OrderItems)
+                            .ThenInclude(oi => oi.Food)
                     .Include(c => c.Carts)
-                    .ThenInclude(cart => cart.CartItems)
-                    .ThenInclude(ci => ci.Food)
+                        .ThenInclude(cart => cart.CartItems)
+                            .ThenInclude(ci => ci.Food)
                     .FirstOrDefaultAsync(c => c.CustomerId == id);
 
                 if (customer == null)
                     return NotFound(new { message = "Customer not found." });
 
+
+                // Map customer to DTO
                 var customerDTO = new CustomerDTO
                 {
                     CustomerId = customer.CustomerId,
+                    AccountId = customer.AccountId,
                     Name = customer.Name,
                     Phone = customer.Phone,
                     Email = customer.Email,
@@ -117,13 +103,6 @@ namespace Huy_FastFood_BE.Controllers.Admin
                         City = a.City,
                         IsDefault = a.IsDefault,
                     }).ToList(),
-                    Orders = customer.Orders.Select(o => new OrderDTO
-                    {
-                        OrderId = o.OrderId,
-                        OrderDate = o.OrderDate,
-                        TotalAmount = o.TotalAmount,
-                        Status = o.Status
-                    }).ToList()
                 };
 
                 return Ok(customerDTO);
@@ -135,27 +114,64 @@ namespace Huy_FastFood_BE.Controllers.Admin
         }
 
         // GET: api/AdminCustomer/{id}/orders
-        [HttpGet("{id}/orders")]
-        public async Task<IActionResult> GetCustomerOrders(int id)
+        [HttpGet("orders/{id}")]
+        public async Task<IActionResult> GetCustomerOrders(
+    int id,
+    [FromQuery] int? search = null,
+    [FromQuery] string? status = null)
         {
             try
             {
-                var orders = await _dbContext.Orders
+                // Lấy danh sách đơn hàng của khách hàng
+                var query = _dbContext.Orders
                     .Where(o => o.CustomerId == id)
                     .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Food)
-                    .ToListAsync();
+                        .ThenInclude(oi => oi.Food)
+                    .Include(o => o.Payments)
+                    .AsQueryable();
 
-                if (!orders.Any())
-                    return NotFound(new { message = "No orders found for this customer." });
+                // Tìm kiếm theo ID
+                if (search.HasValue)
+                {
+                    query = query.Where(o => o.OrderId == search.Value);
+                }
 
-                var orderDTOs = orders.Select(o => new OrderDTO
+                // Lọc theo trạng thái
+                if (!string.IsNullOrEmpty(status))
+                {
+                    query = query.Where(o => o.Status.ToLower() == status.ToLower());
+                }
+
+                var orders = await query.ToListAsync();
+
+
+
+                var orderDTOs = orders.Select(o => new OrderDetailsDTO
                 {
                     OrderId = o.OrderId,
                     OrderDate = o.OrderDate,
                     TotalAmount = o.TotalAmount,
                     Status = o.Status,
-                    Note = o.Note
+                    Note = o.Note,
+                    OrderItems = o.OrderItems.Select(oi => new OrderItemDTO
+                    {
+                        FoodId = oi.FoodId,
+                        ImageUrl = oi.Food.ImageUrl,
+                        FoodName = oi.Food.Name,
+                        Quantity = oi.Quantity,
+                        Price = oi.Food.Price,
+                        TotalPrice = oi.TotalPrice
+                    }).ToList(),
+                    Payment = o.Payments.Select(p => new PaymentDTO
+                    {
+                        PaymentId = p.PaymentId,
+                        PaymentMethod = p.PaymentMethod,
+                        PaymentStatus = p.PaymentStatus,
+                        TransactionId = p.TransactionId,
+                        Amount = p.Amount,
+                        CreatedAt = p.CreatedAt,
+                        UpdatedAt = p.UpdatedAt,
+                    }).ToList()
                 });
 
                 return Ok(orderDTOs);
@@ -165,6 +181,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
+
 
         // GET: api/AdminCustomer/{id}/carts
         [HttpGet("{id}/carts")]

@@ -205,7 +205,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
                 // Kiểm tra xem món ăn khác có tên giống món ăn này không
                 var existingFood = await _dbContext.Foods
-                    .Where(f => f.Name == foodDTO.Name)
+                    .Where(f => f.Name == foodDTO.Name && f.FoodId != id)
                     .FirstOrDefaultAsync();
 
                 if (existingFood != null)
