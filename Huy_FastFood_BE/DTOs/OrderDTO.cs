@@ -27,5 +27,6 @@ namespace Huy_FastFood_BE.DTOs
     {
         public int? AddressId { get; set; }
         public string? Note { get; set; }
+        public string? PaymentMethod { get; set; }
     }
 }

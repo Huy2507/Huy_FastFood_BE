@@ -114,8 +114,13 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
+                if (dto.Password.Length < 6)
+                {
+                    return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
+                }
+
                 if (await _dbContext.Accounts.AnyAsync(a => a.Username == dto.Username))
-                    return BadRequest(new { message = "Username already exists." });
+                    return BadRequest(new { message = "Tên người dùng đã tồn tại." });
 
                 var account = new Account
                 {
@@ -152,6 +157,11 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
+                if (dto.Password.Length < 6)
+                {
+                    return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
+                }
+
                 var account = await _dbContext.Accounts
                     .Include(a => a.UserRoles)
                     .FirstOrDefaultAsync(a => a.AccountId == id);

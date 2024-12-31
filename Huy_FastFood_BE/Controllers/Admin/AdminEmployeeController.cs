@@ -130,6 +130,11 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
+                if (employeeDTO.Password.Length < 6)
+                {
+                    return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
+                }
+
                 var newAccount = new Account
                 {
                     Username = employeeDTO.Username,

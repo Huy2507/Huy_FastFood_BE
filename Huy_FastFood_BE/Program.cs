@@ -1,3 +1,4 @@
+using Huy_FastFood_BE.DTOs;
 using Huy_FastFood_BE.Models;
 using Huy_FastFood_BE.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -59,8 +60,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
         };
     });
+builder.Services.Configure<VNPayConfig>(builder.Configuration.GetSection("VNPay"));
+
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<VNPayService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>

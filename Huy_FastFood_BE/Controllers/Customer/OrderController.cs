@@ -77,14 +77,18 @@ namespace Huy_FastFood_BE.Controllers.Customer
                 }
 
                 // Xóa giỏ hàng sau khi tạo đơn hàng
-                _context.CartItems.RemoveRange(cart.CartItems);
-                _context.Carts.Remove(cart);
+                if(dto.PaymentMethod == "COD")
+                {
+                    _context.CartItems.RemoveRange(cart.CartItems);
+                    _context.Carts.Remove(cart);
+                }
+                
 
                 // Tạo Payment để theo dõi trạng thái thanh toán
                 var payment = new Payment
                 {
                     OrderId = order.OrderId,
-                    PaymentMethod = "VNPay",
+                    PaymentMethod = "Cash on Delivery",
                     PaymentStatus = "Pending",
                     Amount = order.TotalAmount,
                     CreatedAt = DateTime.Now

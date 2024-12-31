@@ -150,22 +150,22 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (month.HasValue)
                 {
                     start = new DateTime(year ?? DateTime.UtcNow.Year, month.Value, 1);
-                    end = start.AddMonths(1).AddDays(-1);
+                    end = new DateTime(start.Year, start.Month, DateTime.DaysInMonth(start.Year, start.Month)).AddDays(1);
                 }
                 else if (year.HasValue)
                 {
                     start = new DateTime(year.Value, 1, 1);
-                    end = new DateTime(year.Value, 12, 31);
+                    end = new DateTime(year.Value, 12, 31).AddDays(1);
                 }
                 else
                 {
-                    start = DateTime.UtcNow.AddDays(-30);
-                    end = DateTime.UtcNow;
+                    start = DateTime.UtcNow.AddDays(-30).Date;
+                    end = DateTime.UtcNow.AddDays(1).Date;
                 }
 
                 // Truy vấn cơ sở dữ liệu
                 var query = _dbContext.Orders
-                    .Where(o => o.OrderDate.HasValue && o.OrderDate >= start && o.OrderDate <= end);
+                    .Where(o => o.OrderDate.HasValue && o.OrderDate >= start && o.OrderDate < end);
 
                 // Xử lý thống kê
                 var statistics = period.ToLower() switch
@@ -204,6 +204,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
+
 
         [HttpGet("order-revenue")]
         public async Task<IActionResult> GetOrderRevenueStatistics(
@@ -219,22 +220,22 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 if (month.HasValue)
                 {
                     start = new DateTime(year ?? DateTime.UtcNow.Year, month.Value, 1);
-                    end = start.AddMonths(1).AddDays(-1);
+                    end = new DateTime(start.Year, start.Month, DateTime.DaysInMonth(start.Year, start.Month)).AddDays(1);
                 }
                 else if (year.HasValue)
                 {
                     start = new DateTime(year.Value, 1, 1);
-                    end = new DateTime(year.Value, 12, 31);
+                    end = new DateTime(year.Value, 12, 31).AddDays(1);
                 }
                 else
                 {
-                    start = DateTime.UtcNow.AddDays(-30);
-                    end = DateTime.UtcNow;
+                    start = DateTime.UtcNow.AddDays(-30).Date;
+                    end = DateTime.UtcNow.AddDays(1).Date;
                 }
 
                 // Truy vấn cơ sở dữ liệu
                 var query = _dbContext.Orders
-                    .Where(o => o.OrderDate.HasValue && o.OrderDate >= start && o.OrderDate <= end);
+                    .Where(o => o.OrderDate.HasValue && o.OrderDate >= start && o.OrderDate < end);
 
                 // Xử lý thống kê
                 var statistics = period.ToLower() switch
@@ -273,7 +274,5 @@ namespace Huy_FastFood_BE.Controllers.Admin
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
-
-
     }
 }

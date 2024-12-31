@@ -1,4 +1,5 @@
-﻿using Huy_FastFood_BE.DTOs;
+﻿using Azure.Core;
+using Huy_FastFood_BE.DTOs;
 using Huy_FastFood_BE.Models;
 using Huy_FastFood_BE.Services;
 using Microsoft.AspNetCore.Http;
@@ -36,7 +37,7 @@ namespace Huy_FastFood_BE.Controllers
             {
                 if (loginDTO == null || string.IsNullOrEmpty(loginDTO.Username) || string.IsNullOrEmpty(loginDTO.Password))
                 {
-                    return BadRequest(new { message = "Invalid login request" });
+                    return BadRequest(new { message = "Yêu cầu không hợp lệ" });
                 }
 
                 // Kiểm tra tài khoản trong cơ sở dữ liệu
@@ -45,12 +46,12 @@ namespace Huy_FastFood_BE.Controllers
 
                 if (account == null || !VerifyPassword(loginDTO.Password, account.Password))
                 {
-                    return Unauthorized(new { message = "Invalid username or password" });
+                    return Unauthorized(new { message = "Tài khoản hoặc mật khẩu không đúng" });
                 }
 
                 if (!account.IsActive)
                 {
-                    return BadRequest(new { message = "Account has been locked" });
+                    return BadRequest(new { message = "Tài khoản đã bị khóa" });
                 }
 
                 // Lấy danh sách vai trò của tài khoản
@@ -185,22 +186,27 @@ namespace Huy_FastFood_BE.Controllers
         {
             try
             {
+                if (registerDTO.Password.Length < 6)
+                {
+                    return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
+                }
+
                 // Kiểm tra xác nhận mật khẩu
                 if (registerDTO.Password != registerDTO.ConfirmPassword)
                 {
-                    return BadRequest(new { message = "Passwords do not match!" });
+                    return BadRequest(new { message = "Mật khẩu không trùng khớp!" });
                 }
 
                 // Kiểm tra trùng lặp tên tài khoản
                 if (_context.Accounts.Any(a => a.Username == registerDTO.Username))
                 {
-                    return BadRequest(new { message = "Username already exists!" });
+                    return BadRequest(new { message = "Tên tài khoản đã tồn tại!" });
                 }
 
                 // Kiểm tra trùng lặp email
                 if (_context.Customers.Any(c => c.Email == registerDTO.Email))
                 {
-                    return BadRequest(new { message = "Email already exists!" });
+                    return BadRequest(new { message = "Email đã tồn tại!" });
                 }
 
                 // Mã hóa mật khẩu
@@ -245,7 +251,7 @@ namespace Huy_FastFood_BE.Controllers
                 // Lưu tất cả thay đổi
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Account created successfully!" });
+                return Ok(new { message = "Tài khoản đã được tạo thành công!" });
             }
             catch (Exception ex)
             {
@@ -303,10 +309,19 @@ namespace Huy_FastFood_BE.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO request)
         {
-            if(request.ConfirmNewPassword != request.NewPassword)
+            // Kiểm tra độ dài mật khẩu
+            if (request.NewPassword.Length < 6)
+            {
+                return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
+            }
+
+            // Kiểm tra mật khẩu xác nhận
+            if (request.ConfirmNewPassword != request.NewPassword)
             {
                 return BadRequest("Mật khẩu không trùng khớp.");
             }
+
+            // Tìm tài khoản theo email và reset code
             var account = await _context.Accounts.FirstOrDefaultAsync(a =>
                 a.Customers.Any(c => c.Email == request.Email) &&
                 a.PasswordResetCode == request.ResetCode &&
@@ -314,12 +329,12 @@ namespace Huy_FastFood_BE.Controllers
 
             if (account == null)
             {
-                return BadRequest("Invalid email or reset code.");
+                return BadRequest("Email hoặc mã xác thực không hợp lệ.");
             }
 
-            // Hash the new password and update the account
+            // Hash mật khẩu mới và cập nhật tài khoản
             account.Password = PasswordHasher.HashPassword(request.NewPassword);
-            account.PasswordResetCode = null; // Clear the reset code
+            account.PasswordResetCode = null; // Xóa mã xác thực
             account.ResetCodeExpiration = null;
             account.UpdatedAt = DateTime.Now;
 
@@ -328,6 +343,7 @@ namespace Huy_FastFood_BE.Controllers
 
             return Ok("Mật khẩu đã được thay đổi.");
         }
+
 
     }
 }
