@@ -157,7 +157,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
         {
             try
             {
-                if (dto.Password.Length < 6)
+                if (dto.Password.Length < 6 && dto.Password.Length != 0)
                 {
                     return BadRequest("Mật khẩu phải có ít nhất 6 ký tự.");
                 }

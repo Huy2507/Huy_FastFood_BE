@@ -74,6 +74,9 @@ namespace Huy_FastFood_BE.DTOs
     {
         public int CategoryId { get; set; }
         public string CategoryName { get; set; }
+        public string? SeoTitle { get; set; }
+        public string? SeoDescription { get; set; }
+        public string? SeoKeywords { get; set; }
         public string Slug { get; set; }
     }
 

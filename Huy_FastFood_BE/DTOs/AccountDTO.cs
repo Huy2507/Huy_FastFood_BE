@@ -30,7 +30,7 @@
 
     public class UpdateAccountDTO
     {
-        public string? Password { get; set; }
+        public string? Password { get; set; } = null;
         public bool IsActive { get; set; }
         public List<int> RoleIds { get; set; } = new List<int>(); // Danh sách ID vai trò
     }

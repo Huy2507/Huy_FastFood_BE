@@ -10,7 +10,7 @@ namespace Huy_FastFood_BE.Controllers.Admin
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin, Chef")]
     public class AdminCategoryController : ControllerBase
     {
         private readonly AppDbContext _context;

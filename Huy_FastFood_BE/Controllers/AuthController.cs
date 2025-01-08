@@ -42,6 +42,7 @@ namespace Huy_FastFood_BE.Controllers
 
                 // Kiểm tra tài khoản trong cơ sở dữ liệu
                 var account = await _context.Accounts
+                    .Include(a => a.Customers) // Include để lấy thông tin Customer
                     .FirstOrDefaultAsync(a => a.Username == loginDTO.Username);
 
                 if (account == null || !VerifyPassword(loginDTO.Password, account.Password))
@@ -63,9 +64,12 @@ namespace Huy_FastFood_BE.Controllers
                 // Tạo Access Token
                 var accessToken = _tokenService.GenerateAccessToken(account, roles);
 
-                // Kiểm tra nếu vai trò là Customer, tạo Refresh Token
+                // Kiểm tra nếu vai trò là Customer, tạo Refresh Token và lấy tên Customer
                 if (roles.Contains("Customer"))
                 {
+                    var customer = account.Customers.FirstOrDefault(); // Lấy thông tin Customer đầu tiên (nếu có)
+                    var customerName = customer?.Name ?? "Unknown"; // Lấy tên hoặc giá trị mặc định
+
                     var refreshToken = _tokenService.GenerateRefreshToken(account.AccountId, "Customer");
                     _context.RefreshTokens.Add(refreshToken);
                     await _context.SaveChangesAsync();
@@ -73,7 +77,8 @@ namespace Huy_FastFood_BE.Controllers
                     return Ok(new
                     {
                         AccessToken = accessToken,
-                        RefreshToken = refreshToken.Token
+                        RefreshToken = refreshToken.Token,
+                        Name = customerName // Trả về tên Customer
                     });
                 }
 
@@ -89,6 +94,7 @@ namespace Huy_FastFood_BE.Controllers
             }
         }
 
+
         private bool VerifyPassword(string enteredPassword, string storedPasswordHash)
         {
             // Ở đây, sử dụng mã hóa Hash để kiểm tra mật khẩu. Ví dụ với BCrypt:
@@ -98,21 +104,42 @@ namespace Huy_FastFood_BE.Controllers
         [HttpPost("RefreshToken")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDTO request)
         {
-            if (!await _tokenService.ValidateRefreshToken(request.RefreshToken, request.UserId))
+            // Validate the provided refresh token
+            var isValidToken = await _tokenService.ValidateRefreshToken(request.RefreshToken, request.UserId);
+            if (!isValidToken)
             {
                 return Unauthorized("Invalid or expired refresh token");
             }
 
+            // Retrieve account and roles for the user
             var account = await _context.Accounts.FindAsync(request.UserId);
             if (account == null)
             {
-                return Unauthorized("Invalid user");
+                return Unauthorized("User not found");
             }
 
-            var roles = await _context.UserRoles.Where(ur => ur.AccountId == account.AccountId).Select(ur => ur.Role.RoleName).ToListAsync();
+            var roles = await _context.UserRoles
+                .Where(ur => ur.AccountId == account.AccountId)
+                .Select(ur => ur.Role.RoleName)
+                .ToListAsync();
+
+            // Generate a new access token
             var newAccessToken = _tokenService.GenerateAccessToken(account, roles);
 
-            return Ok(new { AccessToken = newAccessToken });
+            // Revoke the current refresh token
+            await _tokenService.RevokeRefreshToken(request.RefreshToken);
+
+            // Generate a new refresh token
+            var newRefreshToken = _tokenService.GenerateRefreshToken(request.UserId, roles.FirstOrDefault() ?? "User");
+            _context.RefreshTokens.Add(newRefreshToken);
+            await _context.SaveChangesAsync();
+
+            // Return the new tokens
+            return Ok(new
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken.Token
+            });
         }
 
         [HttpPost("verify-access-token")]

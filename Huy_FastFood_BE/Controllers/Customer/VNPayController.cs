@@ -3,6 +3,10 @@ using Huy_FastFood_BE.Services;
 using Microsoft.EntityFrameworkCore;
 using Huy_FastFood_BE.Models;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Cryptography;
+using System.Text;
+using Huy_FastFood_BE.DTOs;
+using System.Text.Json;
 
 namespace Huy_FastFood_BE.Controllers
 {
@@ -84,6 +88,7 @@ namespace Huy_FastFood_BE.Controllers
                 payment.PaymentMethod = "VNPay";
                 payment.PaymentStatus = paymentStatus == "00" ? "Completed" : "Failed";
                 payment.TransactionId = vnpData["vnp_TransactionNo"];
+                payment.TxnRef = txnRef;
                 payment.UpdatedAt = DateTime.Now;
 
                 // Xóa giỏ hàng sau khi tạo đơn hàng
@@ -121,5 +126,69 @@ namespace Huy_FastFood_BE.Controllers
                 return StatusCode(500, new { message = "An error occurred while processing the payment.", error = ex.Message });
             }
         }
+
+        [HttpPost("refund")]
+        public async Task<IActionResult> RefundOrder([FromBody] RefundRequest request)
+        {
+            try
+            {
+                // Lấy thông tin payment dựa trên orderId
+                var payment = await _context.Payments.FirstOrDefaultAsync(p => p.OrderId == request.OrderId);
+                if (payment == null)
+                {
+                    return NotFound(new { message = "Payment không tồn tại" });
+                }
+
+                // Tạo URL refund qua VNPayService
+                var refundUrl = _vnPayService.CreateRefundUrl(
+                    payment.TxnRef ?? string.Empty,
+                    payment.TransactionId,
+                    payment.Amount,
+                    $"Refund for Order #{request.OrderId}",
+                    HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1"
+                );
+
+                // Log URL để kiểm tra
+                Console.WriteLine($"Refund URL: {refundUrl}");
+
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync(refundUrl);
+
+                // Cập nhật trạng thái Payment và Order
+                payment.RefundStatus = "Refunded";
+                payment.UpdatedAt = DateTime.Now;
+
+                var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderId == request.OrderId);
+                if (order != null)
+                {
+                    order.Status = "Refunded";
+                };
+
+                await _context.SaveChangesAsync();
+
+                return Ok();
+            }
+            catch (HttpRequestException httpEx)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Lỗi HTTP khi gửi yêu cầu refund",
+                    error = httpEx.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Lỗi xử lý refund",
+                    error = ex.Message
+                });
+            }
+        }
+
+
+
+
+
     }
 }

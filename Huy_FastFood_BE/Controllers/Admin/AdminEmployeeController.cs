@@ -194,12 +194,15 @@ namespace Huy_FastFood_BE.Controllers.Admin
 
                 if (existingEmployee == null)
                     return NotFound(new { message = "Employee not found." });
-
+                var leaveDate = employeeDTO.LeaveDate;
                 // Cập nhật các thông tin cơ bản của nhân viên
                 existingEmployee.Name = employeeDTO.Name;
                 existingEmployee.Phone = employeeDTO.Phone;
                 existingEmployee.Email = employeeDTO.Email;
-                existingEmployee.LeaveDate = employeeDTO.LeaveDate;
+                if (leaveDate.ToString() != "9999-01-01T00:00:00")
+                {
+                    existingEmployee.LeaveDate = employeeDTO.LeaveDate;
+                }
                 existingEmployee.IsActive = employeeDTO.IsActive;
                 existingEmployee.UpdatedAt = DateTime.Now;
 

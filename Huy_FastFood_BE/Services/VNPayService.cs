@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using Huy_FastFood_BE.DTOs;
+using Azure.Core;
 
 namespace Huy_FastFood_BE.Services
 {
@@ -70,6 +71,48 @@ namespace Huy_FastFood_BE.Services
             var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
             return BitConverter.ToString(hashBytes).Replace("-", "").ToUpper();
         }
-       
+        public static string CalculateRefundHash(string data, string key)
+        {
+            using var sha256 = new HMACSHA256(Encoding.UTF8.GetBytes(key));
+            var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(data));
+            return BitConverter.ToString(hashBytes).Replace("-", "").ToUpper();
+        }
+        public string CreateRefundUrl(string txnRef, string? transactionId, decimal amount, string orderInfo, string ipAddress)
+        {
+            // Base parameters for VNPay refund
+            var vnp_Params = new SortedDictionary<string, string>
+    {
+        { "vnp_Version", "2.1.0" },
+        { "vnp_Command", "refund" },
+        { "vnp_TmnCode", _config.TmnCode },
+        { "vnp_TxnRef", txnRef },
+        { "vnp_Amount", ((int)(amount * 100)).ToString() }, // Amount in VND x 100
+        { "vnp_OrderInfo", orderInfo },
+        { "vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss") },
+        { "vnp_IpAddr", ipAddress }
+    };
+
+            // Build data string
+            var queryString = new StringBuilder();
+            foreach (var param in vnp_Params)
+            {
+                queryString.Append($"{param.Key}={Uri.EscapeDataString(param.Value)}&");
+            }
+
+            // Remove last '&' and create secure hash
+            queryString.Length--;
+            var rawHash = queryString.ToString();
+            var vnpSecureHash = CalculateRefundHash(rawHash, _config.HashSecret);
+
+            // Build final refund URL
+            return $"{_config.RefundUrl}?{queryString}&vnp_SecureHash={vnpSecureHash}";
+        }
+
+
+        //public string GetRefundUrl()
+        //{
+        //    return _config.RefundUrl ?? _config.Url; // Trả về RefundUrl nếu được cấu hình, ngược lại dùng Url mặc định
+        //}
+
     }
 }

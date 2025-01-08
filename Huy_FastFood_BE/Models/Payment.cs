@@ -1,4 +1,4 @@
-﻿ using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Huy_FastFood_BE.Models;
@@ -20,6 +20,10 @@ public partial class Payment
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+
+    public string? TxnRef { get; set; }
+
+    public string? RefundStatus { get; set; }
 
     public virtual Order? Order { get; set; }
 }

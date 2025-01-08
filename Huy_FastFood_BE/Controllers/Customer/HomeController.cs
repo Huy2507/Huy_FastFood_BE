@@ -20,11 +20,14 @@ namespace Huy_FastFood_BE.Controllers.Customer
 
         // GET: api/Banner
         [HttpGet("banner")]
-        public async Task<IActionResult> GetAllBanners()
+        public async Task<IActionResult> GetActiveBanners()
         {
             try
             {
-                var banners = await _context.Banners
+                var currentDate = DateTime.UtcNow; // Lấy thời gian hiện tại (UTC)
+
+                var activeBanners = await _context.Banners
+                    .Where(b => b.StartDate <= currentDate && (b.EndDate == null || b.EndDate > currentDate))
                     .Select(b => new BannerDTO
                     {
                         Id = b.Id,
@@ -36,16 +39,19 @@ namespace Huy_FastFood_BE.Controllers.Customer
                         SeoDescript = b.SeoDescript,
                         SeoKeywords = b.SeoKeywords,
                         Slug = b.Slug,
+                        StartDate = b.StartDate,
+                        EndDate = b.EndDate
                     })
                     .ToListAsync();
 
-                return Ok(banners);
+                return Ok(activeBanners);
             }
             catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
+
 
         [Authorize(Roles = "Customer")]
         [HttpGet("recent-orders")]

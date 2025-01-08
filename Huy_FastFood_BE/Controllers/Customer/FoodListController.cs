@@ -47,6 +47,9 @@ namespace Huy_FastFood_BE.Controllers.Customer
                     {
                         CategoryId = c.CategoryId,
                         CategoryName = c.CategoryName,
+                        SeoTitle = c.SeoTitle,
+                        SeoDescription = c.SeoDescription,
+                        SeoKeywords = c.SeoKeywords,
                         Slug = c.Slug
                     }).ToListAsync();
 

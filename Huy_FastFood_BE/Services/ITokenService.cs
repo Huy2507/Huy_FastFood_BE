@@ -8,4 +8,5 @@ public interface ITokenService
     RefreshToken GenerateRefreshToken(int userId, string userRole);
     Task<bool> ValidateRefreshToken(string token, int userId);
     Task RevokeRefreshToken(string token);
+    string GenerateRefreshToken();
 }

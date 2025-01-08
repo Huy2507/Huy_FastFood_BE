@@ -3,7 +3,9 @@ using Huy_FastFood_BE.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Huy_FastFood_BE.Hubs;
 
 namespace Huy_FastFood_BE.Controllers.Customer
 {
@@ -11,9 +13,11 @@ namespace Huy_FastFood_BE.Controllers.Customer
     [ApiController]
     public class OrderController : ControllerBase
     {
+        private readonly IHubContext<OrderHub> _hubContext;
         private readonly AppDbContext _context;
-        public OrderController(AppDbContext dbContext)
+        public OrderController(IHubContext<OrderHub> hubContext, AppDbContext dbContext)
         {
+            _hubContext = hubContext;
             _context = dbContext;
         }
 
@@ -100,6 +104,9 @@ namespace Huy_FastFood_BE.Controllers.Customer
 
                 // Lưu tất cả thay đổi vào cơ sở dữ liệu
                 await _context.SaveChangesAsync();
+
+                // Gửi thông báo về đơn hàng mới
+                await _hubContext.Clients.All.SendAsync("ReceiveOrderUpdate", $"Đơn hàng mới #{order.OrderId} đã được tạo.");
 
                 return Ok(new
                 {
@@ -206,6 +213,58 @@ namespace Huy_FastFood_BE.Controllers.Customer
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred while retrieving orders.", error = ex.Message });
+            }
+        }
+        [HttpGet("DeliveringOrder")]
+        public async Task<IActionResult> GetCustomerOrdersIsDelivering()
+        {
+            try
+            {
+                // Lấy accountId từ JWT token
+                var accountIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "UserId");
+                if (accountIdClaim == null)
+                {
+                    return Unauthorized(new { message = "Invalid token or user not authenticated." });
+                }
+
+                var accountId = int.Parse(accountIdClaim.Value);
+
+                // Tìm khách hàng tương ứng với accountId
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.AccountId == accountId);
+                if (customer == null)
+                {
+                    return NotFound(new { message = "Customer not found." });
+                }
+
+                // Lấy danh sách các đơn hàng có trạng thái "Pending", "Done", hoặc "Is Delivery"
+                var orders = await _context.Orders
+                    .Where(o => o.CustomerId == customer.CustomerId &&
+                                (o.Status == "Pending" || o.Status == "Done" || o.Status == "Is Delivering"))
+                    .OrderByDescending(o => o.OrderDate) // Sắp xếp theo thời gian đặt hàng
+                    .Select(o => new
+                    {
+                        o.OrderId,
+                        o.Status,
+                        o.OrderDate,
+                        o.TotalAmount,
+                        o.Note,
+                        OrderItems = o.OrderItems.Select(oi => new
+                        {
+                            oi.FoodId,
+                            oi.Food.Name,
+                            oi.Food.ImageUrl,
+                            oi.Quantity,
+                            oi.Price,
+                            oi.TotalPrice
+                        }).ToList()
+                    })
+                    .ToListAsync();
+
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
             }
         }
 

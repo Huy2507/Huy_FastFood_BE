@@ -157,6 +157,90 @@ namespace Huy_FastFood_BE.Controllers.Customer
         }
 
         [Authorize(Roles = "Customer")]
+        [HttpPost("add-to-cart-from-food-details")]
+        public async Task<IActionResult> AddToCartFromFoodDetails([FromBody] AddToCartDTO dto)
+        {
+            try
+            {
+                // Lấy account_id từ JWT token
+                var accountIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "UserId");
+                if (accountIdClaim == null)
+                {
+                    return Unauthorized(new { message = "Invalid token or user not authenticated." });
+                }
+
+                var accountId = int.Parse(accountIdClaim.Value);
+
+                // Tra cứu customer_id từ account_id
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.AccountId == accountId);
+                if (customer == null)
+                {
+                    return BadRequest(new { message = "Customer not found for the given account." });
+                }
+
+                var customerId = customer.CustomerId;
+
+                // Tìm hoặc tạo giỏ hàng
+                var cart = await _context.Carts
+                    .Include(c => c.CartItems)
+                    .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+                if (cart == null)
+                {
+                    cart = new Cart
+                    {
+                        CustomerId = customerId,
+                        CreatedAt = DateTime.Now,
+                        CartItems = new List<CartItem>()
+                    };
+                    _context.Carts.Add(cart);
+                }
+
+                // Kiểm tra món ăn đã tồn tại trong giỏ chưa
+                var food = await _context.Foods.FindAsync(dto.FoodId);
+                var existingCartItem = cart.CartItems.FirstOrDefault(ci => ci.FoodId == dto.FoodId);
+                if (existingCartItem != null)
+                {
+                    existingCartItem.Quantity = dto.Quantity;
+                    existingCartItem.TotalPrice = food.Price * existingCartItem.Quantity;
+                    existingCartItem.UpdatedAt = DateTime.Now;
+                    // Tính lại tổng giá trị của giỏ hàng
+                    cart.TotalPrice = cart.CartItems.Sum(ci => ci.TotalPrice);
+
+                    await _context.SaveChangesAsync();
+                    return NoContent();
+                }
+                else
+                {
+
+                    if (food == null)
+                    {
+                        return NotFound(new { message = "Food not found." });
+                    }
+
+                    var newCartItem = new CartItem
+                    {
+                        FoodId = dto.FoodId,
+                        Quantity = dto.Quantity,
+                        CreatedAt = DateTime.Now
+                    };
+                    newCartItem.TotalPrice = food.Price * newCartItem.Quantity;
+                    cart.CartItems.Add(newCartItem);
+                }
+
+                // Tính lại tổng giá trị của giỏ hàng
+                cart.TotalPrice = cart.CartItems.Sum(ci => ci.TotalPrice);
+
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Food added to cart successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while adding food to cart.", error = ex.Message });
+            }
+        }
+
+        [Authorize(Roles = "Customer")]
         [HttpPut("decrease-quantity")]
         public async Task<IActionResult> DecreaseQuantity([FromBody] UpdateCartDTO dto)
         {

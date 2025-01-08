@@ -7,8 +7,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System;
 using System.Text;
+using Huy_FastFood_BE.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
+
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -65,12 +67,14 @@ builder.Services.Configure<VNPayConfig>(builder.Configuration.GetSection("VNPay"
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<VNPayService>();
+builder.Services.AddSignalR();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173/") // URL React
+        policy.WithOrigins("http://localhost:5173") // URL React
               .AllowAnyHeader()
+              .AllowCredentials()
               .AllowAnyMethod();
     });
 });
@@ -89,6 +93,9 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHub<OrderHub>("/orderHub");
+app.MapHub<DeliveryOrderHub>("/deliveryOrderHub");
 
 app.UseCors("AllowReactApp");
 

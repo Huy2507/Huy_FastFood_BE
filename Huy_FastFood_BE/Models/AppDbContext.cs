@@ -49,6 +49,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<UserRole> UserRoles { get; set; }
 
+    public virtual DbSet<Review> Reviews { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseSqlServer("Name=ConnectionStrings:DefaultConnection");
 
@@ -471,7 +473,24 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.OrderId)
                 .HasConstraintName("FK__Payments__order___59063A47");
         });
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.HasKey(e => e.ReviewId).HasName("PK__Reviews__74BC79CE882356D8");
 
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Customer).WithMany(p => p.Reviews)
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Reviews__Custome__75035A77");
+
+            entity.HasOne(d => d.Food).WithMany(p => p.Reviews)
+                .HasForeignKey(d => d.FoodId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Reviews__FoodId__740F363E");
+        });
         modelBuilder.Entity<Role>(entity =>
         {
             entity.ToTable("Role");
